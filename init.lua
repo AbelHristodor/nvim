@@ -69,6 +69,9 @@ vim.keymap.set({ 'n', 'v' }, '<Space>', '<Nop>', { silent = true })
 vim.keymap.set('n', 'k', "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true })
 vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true })
 
+-- Save with <C-s>
+vim.keymap.set('n', '<C-s>', ':w<CR>', { silent = true })
+
 
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
