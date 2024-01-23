@@ -20,6 +20,9 @@ vim.o.clipboard = 'unnamedplus'
 -- Force at least 8 lines before ending of file
 vim.o.scrolloff = 8
 
+-- Set conceal level
+vim.opt.conceallevel = 1
+
 -- Long undos
 vim.o.swapfile = false
 vim.o.backup = false
