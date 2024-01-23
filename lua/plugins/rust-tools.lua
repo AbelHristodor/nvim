@@ -46,28 +46,52 @@ local on_attach = function(_, bufnr)
   -- Hover actions
   vim.keymap.set("n", "<C-space>", rt.hover_actions.hover_actions, { buffer = bufnr, desc = "Show [H]over actions" })
   -- Code action groups
-  vim.keymap.set("n", "<Leader>ca", require('rust-tools').code_action_group.code_action_group, { buffer = bufnr, desc = "[C]ode [A]ction" })
-
+  vim.keymap.set("n", "<Leader>ca", require('rust-tools').code_action_group.code_action_group,
+    { buffer = bufnr, desc = "[C]ode [A]ction" })
 end
 
 
 return {
   'simrat39/rust-tools.nvim',
-  event = {"BufReadPost *.rs"},
-  ft = {"rust"},
+  event = { "BufReadPost *.rs" },
+  ft = { "rust" },
   opts = {
     server = {
       cmd = { "rust-analyzer" },
       on_attach = on_attach,
       settings = {
         ["rust-analyzer"] = {
+          cargo = {
+            allFeatures = true,
+            loadOutDirsFromCheck = true,
+            runBuildScripts = true,
+          },
           checkOnSave = {
-            command = "clippy"
+            allFeatures = true,
+            command = "clippy",
+            extraArgs = { "--no-deps" }
+          },
+          procMacro = {
+            enable = true,
+            ignored = {
+              ["async-trait"] = { "async_trait" },
+              ["napi-derive"] = { "napi" },
+              ["async-recursion"] = { "async_recursion" },
+            },
           },
         }
       }
     },
     tools = {
+      on_initialized = function()
+        vim.cmd([[
+        augroup RustLSP
+        autocmd CursorHold                      *.rs silent! lua vim.lsp.buf.document_highlight()
+        autocmd CursorMoved,InsertEnter         *.rs silent! lua vim.lsp.buf.clear_references()
+        autocmd BufEnter,CursorHold,InsertLeave *.rs silent! lua vim.lsp.codelens.refresh()
+        augroup END
+        ]])
+      end,
       inlay_hints = {
         auto = true,
       },

@@ -134,7 +134,20 @@ local plugins = {
 
   -- Autocompletion
   
-  'hrsh7th/nvim-cmp',
+  {
+    'hrsh7th/nvim-cmp',
+    dependencies = {
+      {
+        "Saecki/crates.nvim",
+        event = { "BufRead Cargo.toml" },
+        opts = {
+          src = {
+            cmp = { enabled = true },
+          },
+        },
+      },
+    },
+  },
   'hrsh7th/cmp-nvim-lsp',
   'saadparwaiz1/cmp_luasnip',
   'L3MON4D3/LuaSnip',
@@ -159,6 +172,11 @@ require('luasnip.loaders.from_vscode').lazy_load()
 luasnip.config.setup {}
 
 cmp.setup {
+  opts = function (_, opts)
+    -- Enable Crates source for Cargo.toml
+    opts.sources = opts.sources or {}
+    table.insert(opts.sources, { name = "crates"})
+  end,
   snippet = {
     expand = function(args)
       luasnip.lsp_expand(args.body)

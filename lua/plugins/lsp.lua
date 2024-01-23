@@ -41,20 +41,47 @@ local on_attach = function(client, bufnr)
 
   -- Enable completion triggered by <c-x><c-o>
   vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
-
-  client.server_capabilities.hoverProvider = false
 end
 
 return {
   -- LSP Configuration & Plugins
   'neovim/nvim-lspconfig',
   dependencies = {
-    'williamboman/mason.nvim',
+    {
+      'williamboman/mason.nvim',
+      opts = function(_, opts)
+        opts.ensure_installed = opts.ensure_installed or {}
+        vim.list_extend(opts.ensure_installed, { 'hadolint', "markdownlint", "marksman" })
+      end
+    },
     'williamboman/mason-lspconfig.nvim',
 
     -- Useful status updates for LSP -- Notifications
     { 'j-hui/fidget.nvim', tag = 'legacy', opts = {} },
 
+  },
+  opts ={
+    diagnostics = {
+      underline = true,
+      update_in_insert = false,
+      virtual_text = {
+        spacing = 4,
+        source = "if_many",
+        prefix = "●",
+        -- this will set set the prefix to a function that returns the diagnostics icon based on the severity
+        -- this only works on a recent 0.10.0 build. Will be set to "●" when not supported
+        -- prefix = "icons",
+      },
+      severity_sort = true,
+      signs = {
+        text = {
+          [vim.diagnostic.severity.ERROR] = require("lazyvim.config").icons.diagnostics.Error,
+          [vim.diagnostic.severity.WARN] = require("lazyvim.config").icons.diagnostics.Warn,
+          [vim.diagnostic.severity.HINT] = require("lazyvim.config").icons.diagnostics.Hint,
+          [vim.diagnostic.severity.INFO] = require("lazyvim.config").icons.diagnostics.Info,
+        },
+      },
+    },
   },
   config = function()
     local mason = require("mason")
@@ -78,6 +105,11 @@ return {
           telemetry = { enable = false },
         },
       },
+      pyright = {
+        filetypes = { 'python' }
+      },
+      dockerls = {},
+      docker_compose_language_service = {}
     }
 
     mason.setup()
@@ -103,14 +135,14 @@ return {
       filetypes = { 'python' },
       root_dir = lspconfig.util.find_git_ancestor,
       cmd = { 'ruff-lsp' },
+      config = function()
+        --> Disable hover provider in favor of pyright
+        require("lazyvim.util").lsp.on_attach(function(client, _)
+          if client.name == "ruff_lsp" then
+            client.server_capabilities.hoverProvider = false
+          end
+        end)
+      end
     })
-
-    lspconfig.pyright.setup({
-      on_attach = on_attach,
-      capabilities = capabilities,
-      filetypes = { 'python' },
-    })
-
   end,
 }
-
