@@ -68,6 +68,22 @@ return {
         -- refer to the configuration section below
       },
     },
+    {
+      'rmagatti/goto-preview',
+      config = function()
+        require('goto-preview').setup {
+          default_mappings = true,
+          dismiss_on_move = true,
+        }
+        -- Remaps to Peek Definitions etc
+        -- nnoremap gpd <cmd>lua require('goto-preview').goto_preview_definition()<CR>
+        -- nnoremap gpt <cmd>lua require('goto-preview').goto_preview_type_definition()<CR>
+        -- nnoremap gpi <cmd>lua require('goto-preview').goto_preview_implementation()<CR>
+        -- nnoremap gpD <cmd>lua require('goto-preview').goto_preview_declaration()<CR>
+        -- nnoremap gP <cmd>lua require('goto-preview').close_all_win()<CR>
+        -- nnoremap gpr <cmd>lua require('goto-preview').goto_preview_references()<CR>
+      end
+    }
   },
   config = function()
     local mason = require("mason")
