@@ -97,7 +97,7 @@ return {
 
     local servers = {
       html = { filetypes = { 'html', 'twig', 'hbs' } },
-
+      yamlls = { filetypes = { 'yaml', 'yml' } },
       lua_ls = {
         Lua = {
           diagnostics = {
@@ -111,7 +111,8 @@ return {
         filetypes = { 'python' }
       },
       dockerls = {},
-      docker_compose_language_service = {}
+      docker_compose_language_service = {},
+      terraformls = {}
     }
 
     mason.setup()
