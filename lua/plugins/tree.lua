@@ -6,8 +6,16 @@ return {
     "nvim-tree/nvim-web-devicons",
   },
   config = function()
+    vim.keymap.set("n", "t", ":NvimTreeToggle<CR>")
+
     require("nvim-tree").setup {
-      vim.keymap.set("n", "t", ":NvimTreeToggle<CR>")
+      filters = {
+        dotfiles = false
+      },
+      git = {
+        enable = true,
+        ignore = false
+      }
     }
   end,
 }
