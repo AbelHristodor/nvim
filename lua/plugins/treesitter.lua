@@ -11,7 +11,7 @@ return {
     configs.setup({
       ensure_installed = { "c", "lua", "vim", "vimdoc", "query", "rust", "javascript", "html", "python", "json", "bash",
         "cmake", "dockerfile", "htmldjango", "markdown", "markdown_inline", "regex", "sql", "toml", "yaml", "css", "csv",
-        "comment", "terraform", "hcl" },
+        "comment", "terraform", "hcl", "go"},
       auto_install = false,
       highlight = { enable = true },
       indent = { enable = true },

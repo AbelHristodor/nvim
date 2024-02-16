@@ -85,6 +85,9 @@ return {
       end
     }
   },
+  opts = {
+    autoformat = true
+  },
   config = function()
     local mason = require("mason")
     local mason_lspconfig = require("mason-lspconfig")
@@ -97,7 +100,6 @@ return {
 
     local servers = {
       html = { filetypes = { 'html', 'twig', 'hbs' } },
-      yamlls = { filetypes = { 'yaml', 'yml' } },
       lua_ls = {
         Lua = {
           diagnostics = {
@@ -111,8 +113,13 @@ return {
         filetypes = { 'python' }
       },
       dockerls = {},
-      docker_compose_language_service = {},
-      terraformls = {}
+      docker_compose_language_service = {
+        filetypes = { 'Dockerfile', 'docker-compose'}
+      },
+      terraformls = {},
+      gopls = {},
+      jsonls = {},
+      bashls = {},
     }
 
     mason.setup()
@@ -147,5 +154,6 @@ return {
         end)
       end
     })
+
   end,
 }
