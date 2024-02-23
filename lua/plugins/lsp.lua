@@ -39,6 +39,19 @@ local on_attach = function(client, bufnr)
     vim.lsp.buf.format()
   end, { desc = 'Format current buffer with LSP' })
 
+  local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
+
+  if client.supports_method('textDocument/formatting') then
+    vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
+    vim.api.nvim_create_autocmd('BufWritePre', {
+      buffer = bufnr,
+      group = augroup,
+      callback = function()
+        vim.lsp.buf.format({ bufnr = bufnr })
+      end
+    })
+  end
+
   -- Enable completion triggered by <c-x><c-o>
   vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
 end
@@ -114,7 +127,7 @@ return {
       },
       dockerls = {},
       docker_compose_language_service = {
-        filetypes = { 'Dockerfile', 'docker-compose'}
+        filetypes = { 'Dockerfile', 'docker-compose' }
       },
       terraformls = {},
       gopls = {},
@@ -154,6 +167,5 @@ return {
         end)
       end
     })
-
   end,
 }
