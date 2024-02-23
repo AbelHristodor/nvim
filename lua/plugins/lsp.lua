@@ -41,6 +41,7 @@ local on_attach = function(client, bufnr)
 
   local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
 
+  -- Format on save
   if client.supports_method('textDocument/formatting') then
     vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
     vim.api.nvim_create_autocmd('BufWritePre', {
@@ -130,7 +131,17 @@ return {
         filetypes = { 'Dockerfile', 'docker-compose' }
       },
       terraformls = {},
-      gopls = {},
+      gopls = {
+        settings = {
+          gopls = {
+            completeUnimported = true,
+            usePlaceholders = true,
+            analyses = {
+              unusedparams = true,
+            },
+          }
+        }
+      },
       jsonls = {},
       bashls = {},
     }

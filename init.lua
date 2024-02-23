@@ -9,6 +9,12 @@ vim.o.hlsearch = false
 vim.wo.number = true
 vim.wo.relativenumber = true
 
+-- Default tab settings
+vim.o.expandtab = false
+vim.o.shiftwidth = 0
+vim.o.softtabstop = -1
+vim.o.tabstop = 4
+
 -- Enable mouse mode
 vim.o.mouse = 'a'
 
@@ -123,17 +129,21 @@ vim.opt.rtp:prepend(lazypath)
 local plugins = {
 
   "folke/which-key.nvim", -- Which Key popup
-  "folke/neodev.nvim", -- Neovim Setup/Completitions etc..
+  "folke/neodev.nvim",    -- Neovim Setup/Completitions etc..
 
-   -- Detect tabstop and shiftwidth automatically
-  'tpope/vim-sleuth',
-
+  -- Detect tabstop and shiftwidth automatically
+  {
+    'nmac427/guess-indent.nvim'
+    config = function()
+      require('guess-indent').setup {}
+    end
+  },
   -- Git related plugins
   'tpope/vim-fugitive',
   'tpope/vim-rhubarb',
 
   -- Autocompletion
-  
+
   {
     'hrsh7th/nvim-cmp',
     dependencies = {
@@ -172,10 +182,10 @@ require('luasnip.loaders.from_vscode').lazy_load()
 luasnip.config.setup {}
 
 cmp.setup {
-  opts = function (_, opts)
+  opts = function(_, opts)
     -- Enable Crates source for Cargo.toml
     opts.sources = opts.sources or {}
-    table.insert(opts.sources, { name = "crates"})
+    table.insert(opts.sources, { name = "crates" })
   end,
   snippet = {
     expand = function(args)
@@ -224,6 +234,5 @@ require('which-key').register {
   ['<leader>g'] = { name = '[G]it', _ = 'which_key_ignore' },
   ['<leader>h'] = { name = 'More git', _ = 'which_key_ignore' },
   ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-  ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore'}
+  ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' }
 }
-
