@@ -9,6 +9,9 @@ return {
     vim.keymap.set("n", "t", ":NvimTreeToggle<CR>")
 
     require("nvim-tree").setup {
+      renderer = {
+        group_empty = true,
+      },
       filters = {
         dotfiles = false
       },
