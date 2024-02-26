@@ -18,6 +18,9 @@ return {
       git = {
         enable = true,
         ignore = false
+      },
+      update_focused_file = {
+        enable = true,
       }
     }
   end,
