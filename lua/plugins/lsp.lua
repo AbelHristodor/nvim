@@ -173,6 +173,7 @@ return {
 			terraformls = {},
 			jsonls = {},
 			bashls = {},
+			tsserver = {},
 		}
 
 		mason.setup()
