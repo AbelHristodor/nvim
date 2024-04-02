@@ -39,7 +39,7 @@ local on_attach = function(client, bufnr)
 		vim.lsp.buf.format()
 	end, { desc = "Format current buffer with LSP" })
 
-	local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
+	-- local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
 
 	-- Format on save
 	-- if client.supports_method('textDocument/formatting') then
@@ -138,6 +138,9 @@ return {
 				-- nnoremap gpr <cmd>lua require('goto-preview').goto_preview_references()<CR>
 			end,
 		},
+		{
+			"towolf/vim-helm"
+		}
 	},
 	opts = {
 		autoformat = true,
@@ -174,6 +177,11 @@ return {
 			jsonls = {},
 			bashls = {},
 			tsserver = {},
+			helm_ls = {
+				yamlls = {
+					path = "yaml-language-server",
+				}
+			}
 		}
 
 		mason.setup()
