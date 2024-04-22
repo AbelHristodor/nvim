@@ -201,15 +201,25 @@ local plugins = {
 			--  Check out: https://github.com/echasnovski/mini.nvim
 		end,
 	},
+	{
+		"towolf/vim-helm",
+		ft = 'helm'
+	},
 
 	{ import = "plugins" },
 }
 
 -- Global Options Section
-local opts = {}
+local lz_opts = {
+	event = {
+		"BufReadPre",
+		"BufNewFile",
+		"BufEnter"
+	}
+}
 
 -- Init LazyVim
-require("lazy").setup(plugins, opts)
+require("lazy").setup(plugins, lz_opts)
 
 -- Init Neodev
 require("neodev").setup()

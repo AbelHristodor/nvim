@@ -138,9 +138,6 @@ return {
 				-- nnoremap gpr <cmd>lua require('goto-preview').goto_preview_references()<CR>
 			end,
 		},
-		{
-			"towolf/vim-helm"
-		}
 	},
 	opts = {
 		autoformat = true,
@@ -177,11 +174,6 @@ return {
 			jsonls = {},
 			bashls = {},
 			tsserver = {},
-			helm_ls = {
-				yamlls = {
-					path = "yaml-language-server",
-				}
-			}
 		}
 
 		mason.setup()
