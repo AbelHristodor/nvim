@@ -98,11 +98,6 @@ vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagn
 
 ---- End [[ Basic Keymaps ]]
 
--- [[ Copilot ]]
-vim.g.copilot_no_tab_map = true
-vim.api.nvim_set_keymap("i", "<C-J>", 'copilot#Accept("<CR>")', { silent = true, expr = true })
----- End [[ Copilot ]]
-
 ---- [[ Lazy.nvim ]]
 -- Check: https://github.com/folke/lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -205,6 +200,12 @@ local plugins = {
 		"towolf/vim-helm",
 		ft = 'helm'
 	},
+	{
+		"zbirenbaum/copilot-cmp",
+		config = function()
+			require("copilot_cmp").setup()
+		end,
+	},
 
 	{ import = "plugins" },
 }
@@ -272,6 +273,7 @@ cmp.setup({
 		end, { "i", "s" }),
 	}),
 	sources = {
+		{ name = "copilot", group_index = 2 },
 		{ name = "nvim_lsp" },
 		{ name = "luasnip" },
 	},
