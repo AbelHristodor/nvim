@@ -171,9 +171,11 @@ return {
 				filetypes = { "Dockerfile", "docker-compose" },
 			},
 			terraformls = {},
+			yamlls = {},
 			jsonls = {},
 			bashls = {},
 			tsserver = {},
+			clangd = {},
 		}
 
 		mason.setup()
@@ -223,6 +225,10 @@ return {
 					},
 				},
 			},
+		})
+
+		lspconfig.clangd.setup({
+			cmd = { "clangd", "--offset-encoding=utf-16" },
 		})
 	end,
 }

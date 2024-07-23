@@ -22,4 +22,7 @@ return {
 			vim.keymap.set("n", "<leader>st", ":TodoTelescope<CR>", { desc = "[S]earch [T]odos" })
 		end,
 	},
+	{
+		"tpope/vim-sleuth"
+	}
 }
