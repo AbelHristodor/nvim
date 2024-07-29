@@ -131,25 +131,6 @@ local plugins = {
 	"tpope/vim-fugitive",
 	"tpope/vim-rhubarb",
 
-	-- Autocompletion
-
-	{
-		"hrsh7th/nvim-cmp",
-		dependencies = {
-			{
-				"Saecki/crates.nvim",
-				event = { "BufRead Cargo.toml" },
-				opts = {
-					src = {
-						cmp = { enabled = true },
-					},
-				},
-			},
-		},
-	},
-	"hrsh7th/cmp-nvim-lsp",
-	"saadparwaiz1/cmp_luasnip",
-	"L3MON4D3/LuaSnip",
 	{ -- Autoformat
 		"stevearc/conform.nvim",
 		opts = {
@@ -160,12 +141,6 @@ local plugins = {
 			},
 			formatters_by_ft = {
 				lua = { "stylua" },
-				-- Conform can also run multiple formatters sequentially
-				-- python = { "isort", "black" },
-				--
-				-- You can use a sub-list to tell conform to run *until* a formatter
-				-- is found.
-				-- javascript = { { "prettierd", "prettier" } },
 			},
 		},
 	},
@@ -196,17 +171,6 @@ local plugins = {
 			--  Check out: https://github.com/echasnovski/mini.nvim
 		end,
 	},
-	{
-		"towolf/vim-helm",
-		ft = 'helm'
-	},
-	{
-		"zbirenbaum/copilot-cmp",
-		config = function()
-			require("copilot_cmp").setup()
-		end,
-	},
-
 	{ import = "plugins" },
 }
 
@@ -280,11 +244,11 @@ cmp.setup({
 })
 
 -- Register WhichKey
-require("which-key").register({
-	["<leader>c"] = { name = "[C]ode", _ = "which_key_ignore" },
-	["<leader>d"] = { name = "[D]ocument", _ = "which_key_ignore" },
-	["<leader>g"] = { name = "[G]it", _ = "which_key_ignore" },
-	["<leader>h"] = { name = "More git", _ = "which_key_ignore" },
-	["<leader>s"] = { name = "[S]earch", _ = "which_key_ignore" },
-	["<leader>w"] = { name = "[W]orkspace", _ = "which_key_ignore" },
+require("which-key").add({
+	{ "<leader>c", group = "[C]ode" },
+	{ "<leader>d", group = "[D]ocument" },
+	{ "<leader>g", group = "[G]it" },
+	{ "<leader>h", group = "More git" },
+	{ "<leader>s", group = "[S]earch" },
+	{ "<leader>w", group = "[W]orkspace" },
 })

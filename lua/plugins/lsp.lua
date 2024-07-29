@@ -39,28 +39,9 @@ local on_attach = function(client, bufnr)
 		vim.lsp.buf.format()
 	end, { desc = "Format current buffer with LSP" })
 
-	-- local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
-
-	-- Format on save
-	-- if client.supports_method('textDocument/formatting') then
-	--   vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
-	--   vim.api.nvim_create_autocmd('BufWritePre', {
-	--     buffer = bufnr,
-	--     group = augroup,
-	--     callback = function()
-	--       vim.lsp.buf.format({ bufnr = bufnr })
-	--     end
-	--   })
-	-- end
-
 	-- Enable completion triggered by <c-x><c-o>
 	vim.api.nvim_buf_set_option(bufnr, "omnifunc", "v:lua.vim.lsp.omnifunc")
 
-	-- The following two autocommands are used to highlight references of the
-	-- word under your cursor when your cursor rests there for a little while.
-	--    See `:help CursorHold` for information about when this is executed
-	--
-	-- When you move your cursor, the highlights will be cleared (the second autocommand).
 	if client and client.server_capabilities.documentHighlightProvider then
 		vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
 			buffer = bufnr,
@@ -75,23 +56,13 @@ local on_attach = function(client, bufnr)
 end
 
 local golang_on_attach = function(client, bufnr)
-	-- Autoapply code actions
+	local format_sync_grp = vim.api.nvim_create_augroup("GoFormat", {})
 	vim.api.nvim_create_autocmd("BufWritePre", {
 		pattern = "*.go",
 		callback = function()
-			local params = vim.lsp.util.make_range_params()
-			params.context = { only = { "source.organizeImports" } }
-
-			local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params)
-			for cid, res in pairs(result or {}) do
-				for _, r in pairs(res.result or {}) do
-					if r.edit then
-						local enc = (vim.lsp.get_client_by_id(cid) or {}).offset_encoding or "utf-16"
-						vim.lsp.util.apply_workspace_edit(r.edit, enc)
-					end
-				end
-			end
+			require('go.format').goimports()
 		end,
+		group = format_sync_grp,
 	})
 
 	return on_attach(client, bufnr)
