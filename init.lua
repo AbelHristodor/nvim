@@ -245,10 +245,16 @@ cmp.setup({
 
 -- Register WhichKey
 require("which-key").add({
-	{ "<leader>c", group = "[C]ode" },
-	{ "<leader>d", group = "[D]ocument" },
-	{ "<leader>g", group = "[G]it" },
-	{ "<leader>h", group = "More git" },
-	{ "<leader>s", group = "[S]earch" },
-	{ "<leader>w", group = "[W]orkspace" },
+	{ "", group = "[C]ode" },
+	{ "", desc = "<leader>h_",  hidden = true },
+	{ "", group = "More git" },
+	{ "", group = "[S]earch" },
+	{ "", desc = "<leader>s_",  hidden = true },
+	{ "", group = "[W]orkspace" },
+	{ "", desc = "<leader>g_",  hidden = true },
+	{ "", desc = "<leader>d_",  hidden = true },
+	{ "", group = "[G]it" },
+	{ "", desc = "<leader>c_",  hidden = true },
+	{ "", group = "[D]ocument" },
+	{ "", desc = "<leader>w_",  hidden = true },
 })

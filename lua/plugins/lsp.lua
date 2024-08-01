@@ -30,7 +30,7 @@ local on_attach = function(client, bufnr)
 		print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
 	end, "[W]orkspace [L]ist")
 
-	nmap("<space>f", function()
+	nmap("<space>cf", function()
 		vim.lsp.buf.format({ async = true })
 	end, "[F]ormat")
 
@@ -109,6 +109,15 @@ return {
 				-- nnoremap gpr <cmd>lua require('goto-preview').goto_preview_references()<CR>
 			end,
 		},
+		{
+			"MysticalDevil/inlay-hints.nvim",
+			event = "LspAttach",
+			dependencies = { "neovim/nvim-lspconfig" },
+			config = function()
+				require("inlay-hints").setup()
+			end
+		}
+
 	},
 	opts = {
 		autoformat = true,
@@ -192,6 +201,15 @@ return {
 						usePlaceholders = true,
 						analyses = {
 							unusedparams = true,
+						},
+						hints = {
+							rangeVariableTypes = true,
+							parameterNames = true,
+							constantValues = true,
+							assignVariableTypes = true,
+							compositeLiteralFields = true,
+							compositeLiteralTypes = true,
+							functionTypeParameters = true,
 						},
 					},
 				},
