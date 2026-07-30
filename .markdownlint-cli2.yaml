@@ -1,0 +1,4 @@
+# Disable MD013 (line-length): prose here is soft-wrapped, so a hard column
+# limit reports noise rather than real problems.
+config:
+  MD013: false

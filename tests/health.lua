@@ -326,14 +326,21 @@ end
 check('rust_analyzer NOT enabled here (rustaceanvim owns it)', vim.lsp.is_enabled 'rust_analyzer' == false, 'would double-start')
 check('pyright NOT enabled (fallback only)', vim.lsp.is_enabled 'pyright' == false, 'two type checkers would both run')
 
-local ms_ok, ms_settings = pcall(require, 'mason-lspconfig.settings')
-check('mason-lspconfig settings readable', ms_ok, tostring(ms_settings))
-if ms_ok then
+-- mason-lspconfig is deferred (loaded on LspAttach), so its settings module
+-- reports the upstream default `true` until then. Reading it here would test the
+-- default rather than this config's intent. Assert the SOURCE instead: the one
+-- setup call must pass automatic_enable = false. Verified separately that after
+-- a real LspAttach the live value is false and rust_analyzer stays disabled.
+local lsp_src = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/lsp.lua', 'r')
+if lsp_src then
+  local src = lsp_src:read 'a'
+  lsp_src:close()
   check(
-    'automatic_enable is false (this config owns enablement)',
-    ms_settings.current.automatic_enable == false,
-    vim.inspect(ms_settings.current.automatic_enable)
+    'lsp.lua sets automatic_enable = false (this config owns enablement)',
+    src:match "mason%-lspconfig'%)%.setup%s*{%s*automatic_enable%s*=%s*false" ~= nil,
+    'mason-lspconfig would re-configure servers and could displace the tuned excludes'
   )
+  check('lsp.lua does not enable rust_analyzer', src:match 'rust_analyzer%s*=%s*{' == nil, 'rustaceanvim must be the only owner')
 end
 
 check('LspAttach augroup', count_autocmds 'config-lsp-attach' > 0)
@@ -343,6 +350,29 @@ check('LspAttach augroup', count_autocmds 'config-lsp-attach' > 0)
 for _, offender in ipairs { 'lensline', 'lsp_lines', 'nvim-lightbulb' } do
   check('no ' .. offender, package.loaded[offender] == nil, 'reference-counting codelens reintroduces the latency')
 end
+
+print '== completion and formatting =='
+loads 'blink.cmp'
+loads 'luasnip'
+loads 'conform'
+loads 'lint'
+
+local conform_ok, conform = pcall(require, 'conform')
+if conform_ok then
+  local by_ft = conform.formatters_by_ft or {}
+  for _, ft in ipairs { 'python', 'lua', 'rust', 'typescript', 'typescriptreact', 'json', 'sh', 'toml', 'go', 'markdown' } do
+    check('formatter for ' .. ft, by_ft[ft] ~= nil, 'none configured')
+  end
+end
+
+check('format toggle mapped', has_nmap '<leader>uf')
+check('buffer format toggle mapped', has_nmap '<leader>uF')
+check('format-on-save enabled by default', vim.g.autoformat ~= false)
+check('lint augroup', count_autocmds 'config-lint' > 0)
+check('markdownlint config file exists', vim.uv.fs_stat(vim.fn.stdpath 'config' .. '/.markdownlint-cli2.yaml') ~= nil)
+
+local lint_ok, lint_mod = pcall(require, 'lint')
+if lint_ok then check('markdown linter registered', lint_mod.linters_by_ft.markdown ~= nil) end
 
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))

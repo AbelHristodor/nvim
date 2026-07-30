@@ -17,15 +17,21 @@
 
 local brazil = require 'config.brazil'
 
-vim.pack.add {
-  gh 'neovim/nvim-lspconfig',
+-- nvim-lspconfig must load eagerly: it ships the per-server defaults that
+-- vim.lsp.config() merges with the tuning below.
+vim.pack.add { gh 'neovim/nvim-lspconfig' }
+
+-- DEFERRED. Mason (~45 modules) is a package manager -- only needed when
+-- installing tools or when a server actually starts. fidget (~16 modules) only
+-- draws progress once a server reports it. Neither is needed to open a file, so
+-- both move off the startup path; together they were ~25ms of ~254 startup
+-- requires. Loaded on LspAttach and on the :Mason* commands below.
+vim.pack.add({
   gh 'mason-org/mason.nvim',
   gh 'mason-org/mason-lspconfig.nvim',
   gh 'WhoIsSethDaniel/mason-tool-installer.nvim',
   gh 'j-hui/fidget.nvim',
-}
-
-require('fidget').setup {} -- LSP progress in the corner
+}, { load = false })
 
 ---@type table<string, vim.lsp.Config>
 local servers = {
@@ -141,39 +147,63 @@ local servers = {
 --
 -- Note the settings key is `python`, not `basedpyright`.
 
-require('mason').setup {}
+-- Mason setup, run once on first need rather than at startup. Idempotent, and
+-- guarded so repeated triggers are cheap.
+local mason_ready = false
+local function setup_mason()
+  if mason_ready then return end
+  mason_ready = true
 
--- See the ownership note at the top of this file.
-require('mason-lspconfig').setup { automatic_enable = false }
+  for _, p in ipairs { 'mason.nvim', 'mason-lspconfig.nvim', 'mason-tool-installer.nvim' } do
+    pcall(vim.cmd.packadd, p)
+  end
 
-require('mason-tool-installer').setup {
-  ensure_installed = {
-    -- Servers (Mason package names, verified against the registry).
-    'basedpyright',
-    'pyright', -- fallback only; NOT enabled (see note above)
-    'ruff',
-    'vtsls',
-    'lua-language-server',
-    'gopls',
-    'bash-language-server',
-    'json-lsp',
-    'yaml-language-server',
-    'taplo',
-    'marksman',
-    -- Formatters and linters (used by lua/plugins/format.lua).
-    'stylua',
-    'prettier',
-    'shfmt',
-    'shellcheck',
-    'gofumpt',
-    'goimports',
-    'markdownlint-cli2',
-    -- Debug adapters (used by lua/plugins/dap.lua).
-    'debugpy',
-    'codelldb',
-  },
-  run_on_start = false, -- installing during startup would slow it down
-}
+  require('mason').setup {}
+
+  -- See the ownership note at the top of this file. automatic_enable must stay
+  -- false: this file already called vim.lsp.enable for every server it owns, and
+  -- mason-lspconfig would otherwise re-configure them with its bundled settings.
+  require('mason-lspconfig').setup { automatic_enable = false }
+
+  require('mason-tool-installer').setup {
+    ensure_installed = {
+      -- Servers (Mason package names, verified against the registry).
+      'basedpyright',
+      'pyright', -- fallback only; NOT enabled (see note above)
+      'ruff',
+      'vtsls',
+      'lua-language-server',
+      'gopls',
+      'bash-language-server',
+      'json-lsp',
+      'yaml-language-server',
+      'taplo',
+      'marksman',
+      -- Formatters and linters (used by lua/plugins/format.lua).
+      'stylua',
+      'prettier',
+      'shfmt',
+      'shellcheck',
+      'gofumpt',
+      'goimports',
+      'markdownlint-cli2',
+      -- Debug adapters (used by lua/plugins/dap.lua).
+      'debugpy',
+      'codelldb',
+    },
+    run_on_start = false, -- installing during startup would slow it down
+  }
+end
+
+-- Mason's own commands need it loaded first. Each re-declares the command after
+-- setup so the original invocation still runs.
+for _, cmd in ipairs { 'Mason', 'MasonInstall', 'MasonUninstall', 'MasonUninstallAll', 'MasonLog', 'MasonUpdate', 'MasonToolsInstall', 'MasonToolsUpdate' } do
+  vim.api.nvim_create_user_command(cmd, function(opts)
+    vim.api.nvim_del_user_command(cmd)
+    setup_mason()
+    vim.cmd(('%s %s'):format(cmd, opts.args))
+  end, { nargs = '*', desc = 'Load mason, then run ' .. cmd })
+end
 
 -- Buffer-local LSP keymaps. LazyVim-style, to preserve muscle memory.
 --
@@ -187,6 +217,16 @@ vim.api.nvim_create_autocmd('LspAttach', {
   callback = function(event)
     local buf = event.buf
     local function map(keys, fn, desc, mode) vim.keymap.set(mode or 'n', keys, fn, { buffer = buf, desc = 'LSP: ' .. desc }) end
+
+    -- A server is running, so progress reporting is now worth its cost.
+    -- Scheduled so it never delays the attach itself.
+    vim.schedule(function()
+      if not package.loaded.fidget then
+        pcall(vim.cmd.packadd, 'fidget.nvim')
+        pcall(function() require('fidget').setup {} end)
+      end
+      setup_mason()
+    end)
 
     local fzf = require 'fzf-lua'
 
