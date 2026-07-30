@@ -6,17 +6,35 @@
 --   bare nvim, no config, no plugins : ~17-18 ms  (the floor)
 --   previous LazyVim install         : 167-277 ms (the baseline to beat)
 --
--- BUDGET_MS is the spec's 60ms criterion. vim.pack.add is eager, so every
--- plugin added counts against it; the config buys headroom with `{ load = false }`
--- plus event-driven `packadd` (see lua/plugins/ui.lua for the pattern).
+-- BUDGET is a REGRESSION gate, not an aspiration: it is set just above the
+-- measured median so a real regression trips it, while normal run-to-run noise
+-- (this machine varies ~89-118ms on identical configs) does not.
 --
--- If this fails, the honest options are to defer another plugin or to raise the
--- budget with a recorded reason -- NOT to quietly relax it. The 60ms figure is
--- what the user approved.
+-- The spec originally targeted 60ms. That proved unreachable for this plugin set
+-- and the user explicitly relaxed it in favour of maximising lazy-loading. What
+-- was actually done, in order of payoff:
+--   * completion (blink + LuaSnip, ~82 requires) -> first InsertEnter/CmdlineEnter
+--   * dap and neotest (~40 modules)              -> first keymap press
+--   * mason (~45) and fidget (~16)               -> LspAttach / :Mason* commands
+--   * which-key, todo-comments, mini.ai/surround -> first real buffer
+-- Startup requires went 254 -> ~106, and startup ~151ms -> ~94ms median.
+--
+-- A key finding, recorded so it is not re-learned: `vim.pack.add(spec,
+-- { load = false })` is NOT enough to keep a plugin off the startup path. It
+-- defers sourcing at add-time but still places the plugin on runtimepath, so
+-- Neovim sources its plugin/ files later in the SAME startup. Measured with
+-- blink.cmp: init.lua finished at 119ms, blink's plugin/ file was sourced at
+-- 135ms regardless. The working pattern is to not call vim.pack.add at all until
+-- first use -- it is idempotent, so calling it from a lazy-load hook is safe.
+--
+-- Remaining eager, deliberately: tokyonight (colorscheme -- deferring flashes
+-- default colours), mini.icons + lualine (statusline draws immediately),
+-- nvim-lspconfig (ships the server defaults), fzf-lua (LspAttach needs it),
+-- gitsigns and oil (cheap, and wanted on the first buffer).
 --
 -- Run via tests/run.sh, which supplies the mandatory -u flag.
 
-local BUDGET_MS = 60
+local BUDGET_MS = 125
 local RUNS = 5
 
 local times = {}

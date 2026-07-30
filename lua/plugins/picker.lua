@@ -10,6 +10,10 @@
 
 vim.pack.add { gh 'ibhagwan/fzf-lua' }
 
+-- fzf-lua is loaded eagerly (~19 modules, ~4ms). It could be deferred behind its
+-- keymaps like dap/neotest, but lua/plugins/lsp.lua's LspAttach handler requires
+-- it to build `gd`/`gr`/`gI` mappings, and an LspAttach can precede any picker
+-- keypress. Paying 4ms here is cheaper than the indirection.
 local fzf = require 'fzf-lua'
 
 fzf.setup {

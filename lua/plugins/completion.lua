@@ -13,22 +13,30 @@
 -- capabilities -- pulling in blink AND LuaSnip's ~52 modules. Measured: 178
 -- startup requires with completion vs 94 without, ~142ms vs ~82ms.
 --
--- blink honours no opt-out variable for that plugin file (checked its source),
--- so `load = false` is the mechanism: it registers the plugin on runtimepath
--- WITHOUT sourcing plugin/, exactly like `:packadd!`. The file then only runs
--- when setup_completion() calls packadd on first insert.
+-- `{ load = false }` is NOT sufficient here, and the reason is worth recording.
+-- It defers sourcing at `vim.pack.add` time, but the plugin is still placed on
+-- runtimepath, so Neovim sources `plugin/blink-cmp.lua` later in the same
+-- startup anyway. Measured ordering:
+--   119ms  init.lua finishes
+--   135ms  blink.cmp/plugin/blink-cmp.lua sourced   <-- still on the startup path
+--   152ms  "loading rtp plugins"
+-- That file calls require('blink.cmp') at line 5, which drags in blink's ~23
+-- modules and LuaSnip's ~59.
 --
--- The one thing that file does eagerly and usefully is advertise blink's
--- completion capabilities to language servers. Deferring it means servers that
--- attach before the first keystroke advertise plain LSP capabilities. That is
--- acceptable: setup_completion() re-registers them, and blink re-requests
--- capabilities per-request anyway. Verified that completion works on files
--- opened before any insert (see the InsertEnter check in tests/health.lua).
-vim.pack.add({
+-- So the deferral has to keep the plugins OFF runtimepath until first use: no
+-- vim.pack.add at startup at all. `vim.pack.add` is called inside
+-- setup_completion(), on the first InsertEnter/CmdlineEnter. It is idempotent
+-- (":help vim.pack.add" -- adding a plugin twice in one session does nothing),
+-- and install-on-first-use is fine because the plugins are already on disk after
+-- the initial run.
+--
+-- Trade-off accepted: on a genuinely fresh machine the very first insert pays
+-- the clone. Everything after that is instant.
+local completion_specs = {
   { src = gh 'L3MON4D3/LuaSnip', version = vim.version.range '2.*' },
   gh 'rafamadriz/friendly-snippets',
   { src = gh 'saghen/blink.cmp', version = vim.version.range '1.*' },
-}, { load = false })
+}
 
 local completion_ready = false
 
@@ -36,9 +44,8 @@ local function setup_completion()
   if completion_ready then return end
   completion_ready = true
 
-  for _, p in ipairs { 'LuaSnip', 'friendly-snippets', 'blink.cmp' } do
-    pcall(vim.cmd.packadd, p)
-  end
+  -- Registers on runtimepath and sources plugin/ now, at first use.
+  vim.pack.add(completion_specs)
 
   -- LuaSnip pulls in ~52 modules, so it is loaded here (on first insert) rather
   -- than at startup. from_vscode.lazy_load() only registers friendly-snippets'

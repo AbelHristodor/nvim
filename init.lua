@@ -63,6 +63,10 @@ require 'plugins.lsp'
 require 'plugins.explorer'
 require 'plugins.completion'
 require 'plugins.format'
+require 'plugins.git'
+require 'plugins.rust'
+require 'plugins.dap'
+require 'plugins.test'
 
 -- MUST stay last. Signals that every require above completed; tests/health.lua
 -- treats its absence as "init.lua errored partway". Append new requires ABOVE.

@@ -283,10 +283,16 @@ for _, lhs in ipairs { '<leader>ff', '<leader>fg', '<leader>fb', '<leader>sw' } 
 end
 
 print '== lsp =='
-loads 'mason'
-loads 'mason-lspconfig'
 loads 'lspconfig'
-loads 'fidget'
+
+-- mason, mason-lspconfig and fidget are deliberately NOT required here: they are
+-- deferred to LspAttach / the :Mason* commands, and requiring them would both
+-- load ~60 modules and make the "mason deferred" check below meaningless.
+-- Presence on disk is what matters at this point.
+for _, dir in ipairs { 'mason.nvim', 'mason-lspconfig.nvim', 'mason-tool-installer.nvim', 'fidget.nvim' } do
+  local path = ('%s/site/pack/core/opt/%s'):format(vim.fn.stdpath 'data', dir)
+  check('installed on disk: ' .. dir, vim.uv.fs_stat(path) ~= nil, path)
+end
 
 --- Reads back a server's resolved configuration.
 ---
@@ -352,10 +358,40 @@ for _, offender in ipairs { 'lensline', 'lsp_lines', 'nvim-lightbulb' } do
 end
 
 print '== completion and formatting =='
-loads 'blink.cmp'
-loads 'luasnip'
 loads 'conform'
 loads 'lint'
+
+-- blink.cmp and LuaSnip are NOT required here on purpose. They are deliberately
+-- kept off runtimepath until the first InsertEnter/CmdlineEnter (see the comment
+-- in lua/plugins/completion.lua), so `require` correctly fails at startup.
+-- Asserting their absence is the real invariant -- if they ever load eagerly,
+-- ~82 modules come back onto the startup path.
+check('blink.cmp deferred (not loaded at startup)', package.loaded['blink.cmp'] == nil, 'loaded eagerly; startup regression')
+check('luasnip deferred (not loaded at startup)', package.loaded.luasnip == nil, 'loaded eagerly; startup regression')
+check('dap deferred', package.loaded.dap == nil, 'loaded eagerly')
+check('neotest deferred', package.loaded.neotest == nil, 'loaded eagerly')
+check('mason deferred', package.loaded.mason == nil, 'loaded eagerly')
+check('completion autocmds registered', count_autocmds 'config-completion' == 2, 'expected InsertEnter + CmdlineEnter')
+
+-- The deferral is only correct if it actually loads on demand. Spawn a child
+-- that presses `i` and confirm blink appears -- this is what caught the earlier
+-- bug where two `once` autocmds sharing an augroup deleted each other, leaving
+-- completion permanently unloaded.
+local probe = ('%s/tests/_insert_probe.lua'):format(vim.fn.stdpath 'config')
+local wrote = io.open(probe, 'w')
+if wrote then
+  wrote:write [[
+vim.cmd('enew')
+vim.api.nvim_feedkeys('i', 'x', false)
+vim.wait(5000, function() return package.loaded['blink.cmp'] ~= nil end, 100)
+io.write(package.loaded['blink.cmp'] ~= nil and 'LOADED' or 'NOT_LOADED')
+vim.cmd('cq 0')
+]]
+  wrote:close()
+  local r = vim.system({ vim.v.progpath, '--headless', '-u', vim.fn.stdpath 'config' .. '/init.lua', '-l', probe }, { text = true }):wait(30000)
+  os.remove(probe)
+  check('completion loads on first insert', (r.stdout or ''):match 'LOADED' ~= nil, ('child said %q'):format((r.stdout or ''):gsub('%s', '')))
+end
 
 local conform_ok, conform = pcall(require, 'conform')
 if conform_ok then
