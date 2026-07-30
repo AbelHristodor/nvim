@@ -17,6 +17,8 @@ vim.g.maplocalleader = ' '
 vim.g.have_nerd_font = true
 
 require 'config.options'
+require 'config.keymaps'
+require 'config.autocmds'
 
 -- MUST stay last. Signals that every require above completed; tests/health.lua
 -- treats its absence as "init.lua errored partway". Append new requires ABOVE.

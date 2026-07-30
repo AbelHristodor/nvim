@@ -134,6 +134,35 @@ check('updatetime 200 (measured at real startup)', ut_value == '200', ('child re
 check('real startup exits clean', ut.code == 0, tostring(ut.code))
 check('real startup emits no errors', not (ut.stderr or ''):match 'E%d+', ut.stderr)
 
+print '== keymaps =='
+
+---Returns true if a normal-mode mapping for `lhs` exists.
+---
+--- Two storage quirks, both verified against nvim_get_keymap:
+---   * `<leader>x` is stored with the leader ALREADY EXPANDED to its literal
+---     character. With a space leader, `<leader>bd` is stored as `" bd"`
+---     (bytes 32,98,100) -- NOT as `"<Space>bd"`. Comparing against
+---     `"<Space>bd"` can never match.
+---   * Control keys are stored uppercased: `<C-h>` is stored as `"<C-H>"`.
+--- This helper normalises a `<leader>` prefix so callers can write the
+--- readable form.
+---@param lhs string
+---@return boolean
+local function has_nmap(lhs)
+  local want = lhs:gsub('^<leader>', vim.g.mapleader or ' ')
+  for _, m in ipairs(vim.api.nvim_get_keymap 'n') do
+    if m.lhs == want then return true end
+  end
+  return false
+end
+
+for _, lhs in ipairs { '<C-H>', '<C-L>', '<C-J>', '<C-K>', '<leader>bd' } do
+  check('nmap ' .. lhs, has_nmap(lhs))
+end
+
+print '== autocmds =='
+check('yank highlight augroup', #vim.api.nvim_get_autocmds { group = 'config-highlight-yank', event = 'TextYankPost' } > 0)
+
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
 else
