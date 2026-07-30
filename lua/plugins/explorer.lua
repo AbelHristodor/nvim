@@ -40,11 +40,11 @@ local function setup_tree()
     },
 
     -- Hide build output and caches, matching the language-server excludes in
-    -- lua/config/brazil.lua. `build` is the Brazil symlink into the build farm.
+    -- lua/config/project.lua.
     filters = {
       dotfiles = false,
       git_ignored = false,
-      custom = { '^\\.git$', '^__pycache__$', '^\\.mypy_cache$', '^\\.pytest_cache$', '^\\.ruff_cache$', '^node_modules$', '^target$', '^\\.bemol$' },
+      custom = { '^\\.git$', '^__pycache__$', '^\\.mypy_cache$', '^\\.pytest_cache$', '^\\.ruff_cache$', '^node_modules$', '^target$' },
     },
 
     git = { enable = true, ignore = false },

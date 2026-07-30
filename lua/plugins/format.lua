@@ -1,7 +1,7 @@
 -- conform.nvim: formatting, with a format-on-save toggle.
 --
--- The toggle matters because Brazil packages vary in convention and an
--- unexpected reformat creates noisy diffs in code review.
+-- The toggle matters because projects vary in convention and an unexpected
+-- reformat creates noisy diffs in code review.
 
 vim.pack.add { gh 'stevearc/conform.nvim' }
 

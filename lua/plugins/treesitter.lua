@@ -8,11 +8,6 @@ vim.pack.add {
   { src = gh 'nvim-treesitter/nvim-treesitter', version = 'main' },
 }
 
--- Smithy is an Amazon IDL. There are 54 .smithy files in this user's
--- workspaces, so register the filetype for highlighting. No language server:
--- smithy-language-server is JVM-based and requires Amazon-internal setup.
-vim.filetype.add { extension = { smithy = 'smithy' } }
-
 local parsers = {
   'bash',
   'c',
@@ -40,7 +35,6 @@ local parsers = {
   'query',
   'regex',
   'rust',
-  'smithy', -- verified present in nvim-treesitter's registry
   'toml',
   'tsx',
   'typescript',

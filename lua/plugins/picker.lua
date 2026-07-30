@@ -1,9 +1,9 @@
 -- telescope: fuzzy finder.
 --
 -- Chosen over fzf-lua by request. The native fzf sorter extension does the
--- filtering in compiled C, which is what keeps it usable on a Brazil workspace
--- (`find -L ~/workplace` reaches ~99k Python files). Without that extension
--- telescope's Lua sorter is noticeably slower on large result sets.
+-- filtering in compiled C, which is what keeps it usable on very large
+-- checkouts. Without that extension telescope's Lua sorter is noticeably slower
+-- on large result sets.
 --
 -- On `gd` latency: telescope's LSP pickers jump straight to the result when
 -- there is exactly one, rather than showing a picker (verified in its
@@ -34,7 +34,7 @@ telescope.setup {
       width = 0.87,
       height = 0.80,
     },
-    -- Keep the pickers out of build output. Mirrors lua/config/brazil.lua, which
+    -- Keep the pickers out of build output. Mirrors lua/config/project.lua, which
     -- excludes the same directories from language server indexing.
     file_ignore_patterns = {
       '^%.git/',
@@ -42,7 +42,6 @@ telescope.setup {
       'node_modules/',
       '/build/',
       '/target/',
-      '%.bemol/',
       '__pycache__/',
       '%.mypy_cache/',
       '%.pytest_cache/',

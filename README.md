@@ -19,7 +19,7 @@ Optional: `lazygit`, `cargo`, `go`, `node`.
 | Path | Contents |
 |---|---|
 | `init.lua` | Leader keys, `PackChanged` build hooks, module requires |
-| `lua/config/` | Options, keymaps, autocmds, diagnostics, Brazil tuning |
+| `lua/config/` | Options, keymaps, autocmds, diagnostics, project detection |
 | `lua/plugins/` | One file per concern |
 | `after/ftplugin/` | Filetype-local keymaps |
 | `tests/` | Headless test suite |
@@ -48,11 +48,12 @@ Three things must not be reintroduced. All were measured, not guessed.
    `textDocument/references` on `CursorMoved` puts whole-workspace scans ahead
    of your definition requests on a single-threaded server. This was the primary
    cause of multi-second `gd` latency in the previous config.
-2. **Keep the Brazil excludes.** `lua/config/brazil.lua` excludes `build/`,
-   a cross-volume symlink into the build farm. `find -L ~/workplace` reaches
-   **99,186** Python files; the package actually being edited has ~130. (Plain
-   `find` reports 0 because `~/workplace` is itself a symlink — which is how the
-   original survey undercounted by ~800x.)
+2. **Keep the exclude globs.** `lua/config/project.lua` excludes generated trees
+   like `build/`, which is often a symlink onto another volume and can dwarf the
+   real source — one measured checkout reached ~99k reachable `.py` files versus
+   ~130 actually being edited. Exclusions must cover generated output only:
+   excluding `.venv` once hid every third-party import and produced
+   "Import could not be resolved" across an entire project.
 3. **Lazy-load new plugins.** `vim.pack.add` is eager. Critically,
    `{ load = false }` is *not* enough: it defers sourcing at add-time but still
    puts the plugin on `runtimepath`, so Neovim sources its `plugin/` files later
@@ -70,7 +71,7 @@ of them except `rust_analyzer`, which belongs to rustaceanvim; this is why
 | | Before (LazyVim) | After |
 |---|---|---|
 | Startup (median) | 167–277 ms | ~94 ms |
-| `gd` on a Brazil Python file | "takes ages" | 0.3 ms warm, 52 ms cold |
+| `gd` (cross-file, Python) | "takes ages" | 0.3 ms warm, 52 ms cold |
 | Startup `require` calls | — | 106 (down from 254 pre-deferral) |
 
 ## Keymaps

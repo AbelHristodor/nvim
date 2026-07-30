@@ -32,9 +32,8 @@ vim.g.rustaceanvim = {
           parameterHints = { enable = true },
         },
         files = {
-          -- Keep rust-analyzer out of build output, including the Brazil
-          -- build/ symlink.
-          excludeDirs = { 'build', 'target', '.bemol', 'node_modules' },
+          -- Keep rust-analyzer out of build output.
+          excludeDirs = { 'build', 'target', 'node_modules' },
         },
       },
     },

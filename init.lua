@@ -62,7 +62,7 @@ require 'config.diagnostics'
 
 -- Required for its side-effect-free data by lua/plugins/lsp.lua; required here
 -- so a load error surfaces at startup rather than on first LSP attach.
-require 'config.brazil'
+require 'config.project'
 
 require 'plugins.ui'
 require 'plugins.treesitter'

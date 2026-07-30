@@ -61,7 +61,7 @@ check('init.lua completed without error', vim.g.config_loaded == true, 'init.lua
 -- Capture what init.lua ALREADY loaded, before this loop pollutes package.loaded,
 -- so the two properties can be asserted separately.
 local preloaded = {}
-for _, mod in ipairs { 'config.options', 'config.keymaps', 'config.autocmds', 'config.diagnostics', 'config.brazil' } do
+for _, mod in ipairs { 'config.options', 'config.keymaps', 'config.autocmds', 'config.diagnostics', 'config.project' } do
   preloaded[mod] = package.loaded[mod] ~= nil
 end
 
@@ -74,7 +74,7 @@ for _, mod in ipairs {
   'config.keymaps',
   'config.autocmds',
   'config.diagnostics',
-  'config.brazil',
+  'config.project',
 } do
   local ok, err = pcall(require, mod)
   check('require ' .. mod, ok, tostring(err))
@@ -215,24 +215,39 @@ for _, lhs in ipairs { '<leader>ud', ']d', '[d', ']e', '[e', '<leader>cd' } do
   check('nmap ' .. lhs, has_nmap(lhs))
 end
 
-print '== brazil excludes =='
-local ok_brazil, brazil = pcall(require, 'config.brazil')
-check('config.brazil loads', ok_brazil, tostring(brazil))
-if ok_brazil then
-  -- The build/ symlink is the specific cause of the measured gd latency.
-  check('excludes **/build', vim.tbl_contains(brazil.exclude_globs, '**/build'))
-  -- .venv and .bemol must NOT be excluded: they hold dependency SOURCES, and
-  -- excluding them made every third-party import report "could not be resolved".
-  check('does NOT exclude **/.venv (deps live there)', not vim.tbl_contains(brazil.exclude_globs, '**/.venv'))
-  check('does NOT exclude **/.bemol (farm venv lives there)', not vim.tbl_contains(brazil.exclude_globs, '**/.bemol'))
-  check('excludes **/node_modules', vim.tbl_contains(brazil.exclude_globs, '**/node_modules'))
-  check('excludes **/target', vim.tbl_contains(brazil.exclude_globs, '**/target'))
-  check('python root markers include Config', vim.tbl_contains(brazil.python_root_markers, 'Config'))
-  check('python root markers include pyproject.toml', vim.tbl_contains(brazil.python_root_markers, 'pyproject.toml'))
-  check('node root markers include tsconfig.json', vim.tbl_contains(brazil.node_root_markers, 'tsconfig.json'))
-  check('exclude_globs is non-empty', #brazil.exclude_globs >= 8, tostring(#brazil.exclude_globs))
-  -- Pure data: requiring it must not mutate editor state.
-  check('config.brazil has no side effects', type(brazil) == 'table' and brazil.exclude_globs ~= nil)
+print '== project detection =='
+local ok_project, project = pcall(require, 'config.project')
+check('config.project loads', ok_project, tostring(project))
+if ok_project then
+  check('excludes **/build', vim.tbl_contains(project.exclude_globs, '**/build'))
+  check('excludes **/node_modules', vim.tbl_contains(project.exclude_globs, '**/node_modules'))
+  check('excludes **/target', vim.tbl_contains(project.exclude_globs, '**/target'))
+  -- Dependency sources must NOT be excluded: doing so hid every third-party
+  -- import, so a project reported "could not be resolved" for all of them.
+  check('does NOT exclude **/.venv (deps live there)', not vim.tbl_contains(project.exclude_globs, '**/.venv'))
+  check('does NOT exclude **/venv', not vim.tbl_contains(project.exclude_globs, '**/venv'))
+  check('python root markers include pyproject.toml', vim.tbl_contains(project.python_root_markers, 'pyproject.toml'))
+  check('node root markers include tsconfig.json', vim.tbl_contains(project.node_root_markers, 'tsconfig.json'))
+  check('exclude_globs is non-empty', #project.exclude_globs >= 8, tostring(#project.exclude_globs))
+  check('config.project is pure data/functions', type(project) == 'table' and project.exclude_globs ~= nil)
+
+  -- python_path must find a venv it can actually execute, and reject one it
+  -- cannot. Built in a temp dir so the assertion does not depend on any checkout.
+  check('python_path is a function', type(project.python_path) == 'function')
+  check('python_extra_paths is a function', type(project.python_extra_paths) == 'function')
+  if type(project.python_path) == 'function' then
+    local tmp = vim.fn.tempname()
+    vim.fn.mkdir(tmp .. '/.venv/bin', 'p')
+    check('python_path returns nil when no usable interpreter', project.python_path(tmp) == nil, 'a non-executable stub must not be accepted')
+    -- A real interpreter symlinked into place must be found.
+    vim.fn.system(('ln -s %s %s/.venv/bin/python'):format(vim.fn.exepath 'python3', tmp))
+    if vim.fn.executable(tmp .. '/.venv/bin/python') == 1 then
+      check('python_path finds <root>/.venv', project.python_path(tmp) == tmp .. '/.venv/bin/python', tostring(project.python_path(tmp)))
+    end
+    vim.fn.mkdir(tmp .. '/src', 'p')
+    check('python_extra_paths includes src', vim.tbl_contains(project.python_extra_paths(tmp), 'src'))
+    vim.fn.delete(tmp, 'rf')
+  end
 end
 
 print '== ui plugins =='
@@ -257,7 +272,6 @@ check('PackChanged hook registered', count_autocmds('', 'PackChanged') > 0 or #v
 
 print '== treesitter =='
 loads 'nvim-treesitter'
-check('smithy filetype registered', vim.filetype.match { filename = 'model.smithy' } == 'smithy', tostring(vim.filetype.match { filename = 'model.smithy' }))
 check('treesitter augroup', count_autocmds 'config-treesitter' > 0)
 
 local ok_ts, ts = pcall(require, 'nvim-treesitter')
@@ -265,7 +279,7 @@ if ok_ts then
   local ts_installed = ts.get_installed 'parsers'
   -- The languages actually edited in this workspace. A missing parser here means
   -- no highlighting, which is silent -- worth asserting rather than eyeballing.
-  for _, lang in ipairs { 'python', 'typescript', 'tsx', 'rust', 'lua', 'bash', 'json', 'yaml', 'markdown', 'smithy' } do
+  for _, lang in ipairs { 'python', 'typescript', 'tsx', 'rust', 'lua', 'bash', 'json', 'yaml', 'markdown' } do
     check('parser ' .. lang, vim.tbl_contains(ts_installed, lang), 'not installed')
   end
 end
@@ -367,7 +381,7 @@ if bp then
   check('basedpyright does NOT exclude **/.venv', not vim.tbl_contains(analysis.exclude or {}, '**/.venv'))
   check('basedpyright suppresses untyped-dep noise', (analysis.diagnosticSeverityOverrides or {}).reportUnknownMemberType == 'none')
   check('basedpyright has before_init for venv detection', type(bp.before_init) == 'function', 'per-root interpreter detection missing')
-  check('basedpyright root markers include Config', vim.tbl_contains(bp.root_markers or {}, 'Config'))
+  check('basedpyright root markers include pyproject.toml', vim.tbl_contains(bp.root_markers or {}, 'pyproject.toml'))
 end
 
 for _, s in ipairs { 'vtsls', 'lua_ls', 'ruff', 'gopls', 'bashls', 'jsonls', 'yamlls', 'taplo', 'marksman' } do

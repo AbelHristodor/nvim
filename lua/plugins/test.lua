@@ -41,9 +41,8 @@ local function setup_neotest()
   require('neotest').setup {
     adapters = adapters,
     discovery = {
-      -- Discovery walks the filesystem; disabling it avoids scanning the Brazil
-      -- build/ symlink, which reaches ~99k Python files. Tests are still found
-      -- in the current file on demand.
+      -- Discovery walks the filesystem, which is slow on a large checkout.
+      -- Tests are still found in the current file on demand.
       enabled = false,
     },
     status = { virtual_text = true },

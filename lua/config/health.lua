@@ -62,18 +62,25 @@ local function check_no_codelens()
   end
 end
 
---- INVARIANT 2: Brazil build/ stays excluded from language server indexing.
-local function check_brazil_excludes()
-  local ok, brazil = pcall(require, 'config.brazil')
+--- INVARIANT 2: generated output stays excluded from language server indexing.
+local function check_excludes()
+  local ok, project = pcall(require, 'config.project')
   if not ok then
-    vim.health.error 'config.brazil failed to load'
+    vim.health.error 'config.project failed to load'
     return
   end
-  if vim.tbl_contains(brazil.exclude_globs, '**/build') then
-    vim.health.ok(('Brazil build/ exclusion present (%d globs)'):format(#brazil.exclude_globs))
-  else
-    vim.health.error 'Brazil build/ exclusion missing -- language servers will index the build farm (~99k files)'
+  if not vim.tbl_contains(project.exclude_globs, '**/build') then
+    vim.health.error 'build/ exclusion missing -- language servers will index generated output'
+    return
   end
+  -- Excluding dependency sources hides every third-party import.
+  for _, bad in ipairs { '**/.venv', '**/venv' } do
+    if vim.tbl_contains(project.exclude_globs, bad) then
+      vim.health.error(('%s must NOT be excluded -- it hides third-party imports'):format(bad))
+      return
+    end
+  end
+  vim.health.ok(('exclude globs sane (%d, build output only)'):format(#project.exclude_globs))
 end
 
 --- INVARIANT 3: heavy plugins stay off the startup path.
@@ -126,7 +133,7 @@ function M.check()
   vim.health.start 'config: performance invariants'
   check_diagnostics_config()
   check_no_codelens()
-  check_brazil_excludes()
+  check_excludes()
   check_lazy_loading()
   check_single_lsp_owner()
 end
