@@ -267,6 +267,83 @@ if ok_ts then
   end
 end
 
+print '== picker =='
+loads 'fzf-lua'
+check('fzf binary on PATH', vim.fn.executable 'fzf' == 1)
+check('rg binary on PATH', vim.fn.executable 'rg' == 1)
+check('fd binary on PATH', vim.fn.executable 'fd' == 1)
+
+-- jump1 makes gd land directly on a single result instead of opening a picker.
+local fzf_ok, fzf_globals = pcall(function() return require('fzf-lua.config').globals end)
+check('fzf-lua globals readable', fzf_ok, tostring(fzf_globals))
+if fzf_ok and fzf_globals and fzf_globals.lsp then check('fzf-lua lsp.jump1 enabled', fzf_globals.lsp.jump1 == true, tostring(fzf_globals.lsp.jump1)) end
+
+for _, lhs in ipairs { '<leader>ff', '<leader>fg', '<leader>fb', '<leader>sw' } do
+  check('nmap ' .. lhs, has_nmap(lhs))
+end
+
+print '== lsp =='
+loads 'mason'
+loads 'mason-lspconfig'
+loads 'lspconfig'
+loads 'fidget'
+
+--- Reads back a server's resolved configuration.
+---
+--- Must use the INDEX form `vim.lsp.config[name]`, not the call form
+--- `vim.lsp.config(name)`. The call form is the setter and raises
+--- "cfg: expected table (hint: to resolve a config, use vim.lsp.config[...])"
+--- when called with one argument. Verified on 0.12.
+---@param name string
+---@return table|nil
+local function server_cfg(name)
+  local ok, cfg = pcall(function() return vim.lsp.config[name] end)
+  return (ok and type(cfg) == 'table') and cfg or nil
+end
+
+local bp = server_cfg 'basedpyright'
+check('basedpyright configured', bp ~= nil)
+if bp then
+  local analysis = vim.tbl_get(bp, 'settings', 'basedpyright', 'analysis') or {}
+  check('basedpyright diagnosticMode openFilesOnly', analysis.diagnosticMode == 'openFilesOnly', tostring(analysis.diagnosticMode))
+  check('basedpyright excludes **/build (the gd latency fix)', vim.tbl_contains(analysis.exclude or {}, '**/build'))
+  check('basedpyright excludes **/.bemol', vim.tbl_contains(analysis.exclude or {}, '**/.bemol'))
+  check('basedpyright root markers include Config', vim.tbl_contains(bp.root_markers or {}, 'Config'))
+end
+
+for _, s in ipairs { 'vtsls', 'lua_ls', 'ruff', 'gopls', 'bashls', 'jsonls', 'yamlls', 'taplo', 'marksman' } do
+  check(s .. ' configured', server_cfg(s) ~= nil)
+end
+
+-- Every server this config owns must be enabled...
+for _, s in ipairs { 'basedpyright', 'ruff', 'vtsls', 'lua_ls', 'gopls' } do
+  check(s .. ' enabled', vim.lsp.is_enabled(s) == true)
+end
+
+-- ...and rust_analyzer must NOT be, because rustaceanvim owns it exclusively.
+-- Uses vim.lsp.is_enabled(): there is no vim.lsp.config._enabled field on 0.12
+-- (it is nil), so testing against that would silently always pass.
+check('rust_analyzer NOT enabled here (rustaceanvim owns it)', vim.lsp.is_enabled 'rust_analyzer' == false, 'would double-start')
+check('pyright NOT enabled (fallback only)', vim.lsp.is_enabled 'pyright' == false, 'two type checkers would both run')
+
+local ms_ok, ms_settings = pcall(require, 'mason-lspconfig.settings')
+check('mason-lspconfig settings readable', ms_ok, tostring(ms_settings))
+if ms_ok then
+  check(
+    'automatic_enable is false (this config owns enablement)',
+    ms_settings.current.automatic_enable == false,
+    vim.inspect(ms_settings.current.automatic_enable)
+  )
+end
+
+check('LspAttach augroup', count_autocmds 'config-lsp-attach' > 0)
+
+-- No codelens anywhere: reference-counting codelens on CursorMoved was the
+-- primary cause of the gd latency this config exists to fix.
+for _, offender in ipairs { 'lensline', 'lsp_lines', 'nvim-lightbulb' } do
+  check('no ' .. offender, package.loaded[offender] == nil, 'reference-counting codelens reintroduces the latency')
+end
+
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
 else
