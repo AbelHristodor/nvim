@@ -57,6 +57,7 @@ require 'config.diagnostics'
 require 'config.brazil'
 
 require 'plugins.ui'
+require 'plugins.treesitter'
 
 -- MUST stay last. Signals that every require above completed; tests/health.lua
 -- treats its absence as "init.lua errored partway". Append new requires ABOVE.

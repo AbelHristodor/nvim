@@ -252,6 +252,21 @@ check('colorscheme is tokyonight', (vim.g.colors_name or ''):match 'tokyonight' 
 check('gh() helper defined by init.lua', type(_G.gh) == 'function', type(_G.gh))
 check('PackChanged hook registered', count_autocmds('', 'PackChanged') > 0 or #vim.api.nvim_get_autocmds { event = 'PackChanged' } > 0)
 
+print '== treesitter =='
+loads 'nvim-treesitter'
+check('smithy filetype registered', vim.filetype.match { filename = 'model.smithy' } == 'smithy', tostring(vim.filetype.match { filename = 'model.smithy' }))
+check('treesitter augroup', count_autocmds 'config-treesitter' > 0)
+
+local ok_ts, ts = pcall(require, 'nvim-treesitter')
+if ok_ts then
+  local ts_installed = ts.get_installed 'parsers'
+  -- The languages actually edited in this workspace. A missing parser here means
+  -- no highlighting, which is silent -- worth asserting rather than eyeballing.
+  for _, lang in ipairs { 'python', 'typescript', 'tsx', 'rust', 'lua', 'bash', 'json', 'yaml', 'markdown', 'smithy' } do
+    check('parser ' .. lang, vim.tbl_contains(ts_installed, lang), 'not installed')
+  end
+end
+
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
 else
