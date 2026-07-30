@@ -17,6 +17,20 @@
 
 local brazil = require 'config.brazil'
 
+-- Mason's bin directory must be on PATH before any server starts.
+--
+-- Normally `require('mason').setup()` prepends it, but mason is deferred here to
+-- keep ~45 modules off the startup path -- and a server can be spawned by
+-- vim.lsp.enable() long before anything triggers that load. Without this, every
+-- Mason-installed server silently fails to attach: `vim.fn.executable
+-- 'lua-language-server'` returns 0 and no client appears, with no error shown.
+-- Found exactly that way during end-to-end testing.
+--
+-- Prepending the path directly is ~0ms and removes the ordering dependency
+-- entirely.
+local mason_bin = vim.fn.stdpath 'data' .. '/mason/bin'
+if not (vim.env.PATH or ''):find(mason_bin, 1, true) then vim.env.PATH = mason_bin .. ':' .. vim.env.PATH end
+
 -- nvim-lspconfig must load eagerly: it ships the per-server defaults that
 -- vim.lsp.config() merges with the tuning below.
 vim.pack.add { gh 'neovim/nvim-lspconfig' }
