@@ -467,10 +467,29 @@ for _, lhs in ipairs { '<C-H>', '<C-L>', '<C-J>', '<C-K>', '<leader>bd' } do
 end
 
 print('== autocmds ==')
-check(
-  'yank highlight augroup',
-  #vim.api.nvim_get_autocmds { group = 'config-highlight-yank', event = 'TextYankPost' } > 0
-)
+
+---Counts autocmds in an augroup, returning 0 when the group does not exist.
+---
+--- nvim_get_autocmds THROWS `E5113: Invalid 'group'` for an unknown group rather
+--- than returning an empty list (verified). Called bare, a missing augroup would
+--- abort this script mid-run -- losing the summary and every check after it -- so
+--- the failure would present as truncated output rather than a named FAIL.
+---@param group string
+---@param event? string
+---@return integer
+local function count_autocmds(group, event)
+  local ok, result = pcall(vim.api.nvim_get_autocmds, { group = group, event = event })
+  return ok and #result or 0
+end
+
+check('yank highlight augroup', count_autocmds('config-highlight-yank', 'TextYankPost') > 0, 'augroup missing or empty')
+
+-- The five augroups config.autocmds creates. Asserted together because the test
+-- above covers only one, and a silently-missing autocmd is invisible in normal use.
+for _, group in ipairs { 'highlight-yank', 'last-loc', 'close-with-q', 'auto-create-dir', 'term-open' } do
+  local n = count_autocmds('config-' .. group)
+  check('augroup config-' .. group, n > 0, ('%d autocmds'):format(n))
+end
 ```
 
 Note on leader mappings: `nvim_get_keymap` reports them with the leader expanded
