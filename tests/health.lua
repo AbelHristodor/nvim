@@ -221,7 +221,10 @@ check('config.brazil loads', ok_brazil, tostring(brazil))
 if ok_brazil then
   -- The build/ symlink is the specific cause of the measured gd latency.
   check('excludes **/build', vim.tbl_contains(brazil.exclude_globs, '**/build'))
-  check('excludes **/.bemol', vim.tbl_contains(brazil.exclude_globs, '**/.bemol'))
+  -- .venv and .bemol must NOT be excluded: they hold dependency SOURCES, and
+  -- excluding them made every third-party import report "could not be resolved".
+  check('does NOT exclude **/.venv (deps live there)', not vim.tbl_contains(brazil.exclude_globs, '**/.venv'))
+  check('does NOT exclude **/.bemol (farm venv lives there)', not vim.tbl_contains(brazil.exclude_globs, '**/.bemol'))
   check('excludes **/node_modules', vim.tbl_contains(brazil.exclude_globs, '**/node_modules'))
   check('excludes **/target', vim.tbl_contains(brazil.exclude_globs, '**/target'))
   check('python root markers include Config', vim.tbl_contains(brazil.python_root_markers, 'Config'))
@@ -361,7 +364,9 @@ if bp then
   local analysis = vim.tbl_get(bp, 'settings', 'basedpyright', 'analysis') or {}
   check('basedpyright diagnosticMode openFilesOnly', analysis.diagnosticMode == 'openFilesOnly', tostring(analysis.diagnosticMode))
   check('basedpyright excludes **/build (the gd latency fix)', vim.tbl_contains(analysis.exclude or {}, '**/build'))
-  check('basedpyright excludes **/.bemol', vim.tbl_contains(analysis.exclude or {}, '**/.bemol'))
+  check('basedpyright does NOT exclude **/.venv', not vim.tbl_contains(analysis.exclude or {}, '**/.venv'))
+  check('basedpyright suppresses untyped-dep noise', (analysis.diagnosticSeverityOverrides or {}).reportUnknownMemberType == 'none')
+  check('basedpyright has before_init for venv detection', type(bp.before_init) == 'function', 'per-root interpreter detection missing')
   check('basedpyright root markers include Config', vim.tbl_contains(bp.root_markers or {}, 'Config'))
 end
 

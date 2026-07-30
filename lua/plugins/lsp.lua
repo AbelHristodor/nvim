@@ -54,15 +54,78 @@ local servers = {
   -- in this file -- see lua/config/brazil.lua for why.
   basedpyright = {
     root_markers = brazil.python_root_markers,
+
+    -- The interpreter must be resolved PER ROOT, so it cannot live in the static
+    -- settings table below. Without it, Brazil packages report "Import could not
+    -- be resolved" / "Type of X is unknown" for every third-party import, because
+    -- Brazil keeps dependencies outside the package. See config.brazil.python_path.
+    before_init = function(_, config)
+      local root = config.root_dir
+      if not root then return end
+
+      local py = brazil.python_path(root)
+      config.settings = vim.tbl_deep_extend('force', config.settings or {}, {
+        python = { pythonPath = py },
+        basedpyright = {
+          analysis = {
+            -- Package layout: importable code under src/, tests importing from
+            -- both. Merged with whatever pyrightconfig.json already declares.
+            extraPaths = brazil.python_extra_paths(root),
+          },
+        },
+      })
+
+      if not py then
+        vim.notify(
+          ('basedpyright: no venv found for %s -- third-party imports will not resolve.\nCreate one (uv venv) or check pyrightconfig.json venvPath.'):format(
+            vim.fn.fnamemodify(root, ':t')
+          ),
+          vim.log.levels.WARN
+        )
+      end
+    end,
+
     settings = {
       basedpyright = {
+        -- basedpyright's own hint decorations duplicate the diagnostics.
+        disableTaggedHints = true,
         analysis = {
           -- Workspace-wide diagnostics would re-scan everything on each edit.
           diagnosticMode = 'openFilesOnly',
           exclude = brazil.exclude_globs,
           useLibraryCodeForTypes = true,
           autoImportCompletions = true,
+          autoSearchPaths = true,
           typeCheckingMode = 'standard',
+
+          -- QUIET THE UNTYPED-DEPENDENCY NOISE.
+          --
+          -- basedpyright defaults to a much stricter baseline than pyright: it
+          -- reports every value whose type it cannot fully infer. Against
+          -- dependencies that ship no type stubs (aws_lambda_powertools, mangum,
+          -- and most Brazil-internal packages) that means a wall of "Type of X is
+          -- unknown" on correct code.
+          --
+          -- Measured on PPdev's src/ppdev_api/main.py: 159 diagnostics total, of
+          -- which only 7 were real errors -- 68 reportUnknownVariableType, 68
+          -- reportUnknownMemberType, and the rest similar. Turning these off
+          -- leaves genuine problems (missing imports, attribute errors, type
+          -- mismatches) fully reported.
+          diagnosticSeverityOverrides = {
+            reportUnknownVariableType = 'none',
+            reportUnknownMemberType = 'none',
+            reportUnknownParameterType = 'none',
+            reportUnknownArgumentType = 'none',
+            reportUnknownLambdaType = 'none',
+            reportMissingParameterType = 'none',
+            reportMissingTypeStubs = 'none',
+            reportUntypedFunctionDecorator = 'none',
+            reportUntypedBaseClass = 'none',
+            reportUnusedCallResult = 'none',
+            reportAny = 'none',
+            reportExplicitAny = 'none',
+            reportImplicitOverride = 'none',
+          },
         },
       },
     },
