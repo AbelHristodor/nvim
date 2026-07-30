@@ -293,6 +293,73 @@ for _, cmd in ipairs { 'Mason', 'MasonInstall', 'MasonUninstall', 'MasonUninstal
   end, { nargs = '*', desc = 'Load mason, then run ' .. cmd })
 end
 
+-- PYTHON INTERPRETER SWITCHING AT RUNTIME.
+--
+-- `before_init` resolves the interpreter once, when the server starts. That is
+-- the wrong moment if you activate a venv afterwards, or if a project has several
+-- (3.11 vs 3.12, or one per service): the server keeps whatever it was given and
+-- there is no way to correct it from the shell, so imports stay unresolved.
+--
+-- basedpyright does accept a new interpreter at runtime via
+-- workspace/didChangeConfiguration -- verified: pushing a new pythonPath into a
+-- running client made previously-unresolved symbols resolve without a restart.
+-- `:VenvSelect` does exactly that.
+
+---Applies `py` as the Python interpreter for every running basedpyright client.
+---@param py string absolute path to a python executable
+local function set_python_path(py)
+  local clients = vim.lsp.get_clients { name = 'basedpyright' }
+  if #clients == 0 then
+    vim.notify('No basedpyright client running', vim.log.levels.WARN)
+    return
+  end
+
+  local venv = py:gsub('/bin/python$', '')
+  for _, client in ipairs(clients) do
+    local extra = vim.tbl_get(client.settings or {}, 'basedpyright', 'analysis', 'extraPaths') or {}
+    -- Drop any previously-injected site-packages so switching venvs does not
+    -- leave the old one on the path, then add the new one.
+    local kept = vim.tbl_filter(function(p) return not p:find 'site%-packages$' end, extra)
+    for _, lib in ipairs(vim.fn.glob(venv .. '/lib/python*/site-packages', false, true)) do
+      kept[#kept + 1] = lib
+    end
+
+    client.settings = vim.tbl_deep_extend('force', client.settings or {}, {
+      python = { pythonPath = py },
+      basedpyright = { analysis = { extraPaths = kept } },
+    })
+    client:notify('workspace/didChangeConfiguration', { settings = client.settings })
+  end
+
+  -- Keep the environment in step so terminals, tests and DAP agree with the LSP.
+  vim.env.VIRTUAL_ENV = venv
+  if not (vim.env.PATH or ''):find(venv .. '/bin', 1, true) then vim.env.PATH = venv .. '/bin:' .. vim.env.PATH end
+
+  vim.notify(('Python: %s'):format(py), vim.log.levels.INFO)
+end
+
+vim.api.nvim_create_user_command('VenvSelect', function()
+  local root = vim.fs.root(0, project.python_root_markers) or vim.uv.cwd()
+  local found = project.find_venvs(root)
+
+  if #found == 0 then
+    vim.notify(('No virtualenv found for %s.\nCreate one with `uv venv` or `python -m venv .venv`.'):format(root), vim.log.levels.WARN)
+    return
+  end
+
+  vim.ui.select(found, { prompt = 'Python interpreter' }, function(choice)
+    if choice then set_python_path(choice) end
+  end)
+end, { desc = 'Select the Python interpreter for the running LSP' })
+
+vim.api.nvim_create_user_command('VenvCurrent', function()
+  local client = vim.lsp.get_clients({ name = 'basedpyright' })[1]
+  local py = client and vim.tbl_get(client.settings or client.config.settings or {}, 'python', 'pythonPath')
+  vim.notify(('Python: %s\n$VIRTUAL_ENV: %s'):format(py or '(server default)', vim.env.VIRTUAL_ENV or '(unset)'), vim.log.levels.INFO)
+end, { desc = 'Show the Python interpreter the LSP is using' })
+
+vim.keymap.set('n', '<leader>cv', '<cmd>VenvSelect<CR>', { desc = 'Select Python venv' })
+
 -- Buffer-local LSP keymaps. LazyVim-style, to preserve muscle memory.
 --
 -- NOTE: no codelens anywhere. Reference-counting codelens was the primary

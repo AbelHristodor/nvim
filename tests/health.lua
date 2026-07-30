@@ -234,6 +234,7 @@ if ok_project then
   -- python_path must find a venv it can actually execute, and reject one it
   -- cannot. Built in a temp dir so the assertion does not depend on any checkout.
   check('python_path is a function', type(project.python_path) == 'function')
+  check('find_venvs is a function', type(project.find_venvs) == 'function')
   check('python_extra_paths is a function', type(project.python_extra_paths) == 'function')
   if type(project.python_path) == 'function' then
     local tmp = vim.fn.tempname()
@@ -417,6 +418,12 @@ if lsp_src then
 end
 
 check('LspAttach augroup', count_autocmds 'config-lsp-attach' > 0)
+
+-- Runtime interpreter switching. before_init resolves the interpreter once at
+-- server start, so a venv activated later cannot be picked up without this.
+check('VenvSelect command exists', vim.fn.exists ':VenvSelect' == 2, 'no way to fix a wrong interpreter without restarting')
+check('VenvCurrent command exists', vim.fn.exists ':VenvCurrent' == 2)
+check('venv keymap <leader>cv', has_nmap '<leader>cv')
 
 -- No codelens anywhere: reference-counting codelens on CursorMoved was the
 -- primary cause of the gd latency this config exists to fix.

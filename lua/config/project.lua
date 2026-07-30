@@ -103,6 +103,48 @@ function M.python_path(root)
   return nil
 end
 
+---Finds candidate virtualenvs for a project, most likely first.
+---
+--- Used by the `:VenvSelect` picker in lua/plugins/lsp.lua. Looks in the project
+--- itself and in the conventional out-of-tree locations that uv, virtualenvwrapper
+--- and poetry use, so a venv stored outside the repo is still offered.
+---@param root string
+---@return string[] python interpreter paths
+function M.find_venvs(root)
+  local seen, out = {}, {}
+  local function add(py)
+    if py and vim.fn.executable(py) == 1 and not seen[py] then
+      seen[py] = true
+      out[#out + 1] = py
+    end
+  end
+
+  if vim.env.VIRTUAL_ENV and vim.env.VIRTUAL_ENV ~= '' then add(vim.env.VIRTUAL_ENV .. '/bin/python') end
+
+  for _, dir in ipairs { '.venv', 'venv', 'env', '.direnv/python-*' } do
+    for _, hit in ipairs(vim.fn.glob(('%s/%s/bin/python'):format(root, dir), false, true)) do
+      add(hit)
+    end
+  end
+
+  -- Out-of-tree venv managers. `~/.virtualenvs` is virtualenvwrapper's default;
+  -- the Library path is where poetry keeps them on macOS.
+  local name = vim.fn.fnamemodify(root, ':t')
+  for _, pattern in ipairs {
+    vim.env.HOME .. '/.virtualenvs/*/bin/python',
+    vim.env.HOME .. '/.local/share/virtualenvs/*/bin/python',
+    vim.env.HOME .. '/Library/Caches/pypoetry/virtualenvs/*/bin/python',
+    vim.env.HOME .. '/.cache/pypoetry/virtualenvs/*/bin/python',
+  } do
+    for _, hit in ipairs(vim.fn.glob(pattern, false, true)) do
+      -- Prefer ones whose directory name mentions the project.
+      if hit:lower():find(name:lower(), 1, true) then add(hit) end
+    end
+  end
+
+  return out
+end
+
 ---Extra import roots for a Python project.
 ---
 --- Two jobs:

@@ -97,6 +97,7 @@ key-for-key** (taken from its own fzf-lua extra) so muscle memory transfers.
 | `<leader>gs` / `gc` / `gd` / `gS` | git status / commits / diff hunks / stash |
 | `<leader>gg` | lazygit |
 | `<leader>e` / `<leader>E` | file tree sidebar (root dir / cwd) |
+| `<leader>cv` | select Python interpreter (`:VenvSelect`) |
 | `<leader>ud` | toggle diagnostic virtual_lines |
 | `<leader>uf` / `uF` | toggle format-on-save global / buffer |
 | `]d` / `[d` / `]e` / `[e` | next/prev diagnostic, next/prev error |
@@ -112,6 +113,30 @@ Two deliberate departures from LazyVim:
   on `gK`, but LazyVim uses `gK` for signature help and that binding wins.
 * **No `<leader>cc` / `cC`** (run/refresh codelens). Codelens is deliberately
   absent — see the performance notes above.
+
+## Python interpreters
+
+The interpreter is auto-detected per project, in this order:
+
+1. `$VIRTUAL_ENV` — an activated venv
+2. `<project>/.venv`, then `<project>/venv`
+3. a venv declared by the project's `pyrightconfig.json` (`venvPath` + `venv`)
+
+If imports show as unresolved or "unknown symbol", check what the server is
+actually using with **`:VenvCurrent`**, then switch with **`:VenvSelect`**
+(`<leader>cv`). That pushes the new interpreter to the running server via
+`workspace/didChangeConfiguration` — no restart needed — and also updates
+`$VIRTUAL_ENV`/`PATH` so terminals, tests and the debugger agree with the LSP.
+
+Detection happens once when the server starts, so a venv activated *after*
+opening Neovim needs `:VenvSelect` (or `:LspRestart`). Two gotchas worth knowing:
+
+* A project's own `pyrightconfig.json` **overrides** what the editor sends. If it
+  pins a stale `venvPath`, fix or remove that line — no editor setting can win
+  against it.
+* basedpyright falls back to whatever `python3` is on `PATH`. If that interpreter
+  happens to have your packages installed, imports resolve *anyway* and the
+  misconfiguration stays hidden until you hit a package it lacks.
 
 ## Plugin set
 
