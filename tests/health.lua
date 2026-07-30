@@ -232,6 +232,26 @@ if ok_brazil then
   check('config.brazil has no side effects', type(brazil) == 'table' and brazil.exclude_globs ~= nil)
 end
 
+print '== ui plugins =='
+
+---@param name string module name to require
+local function loads(name)
+  local ok, err = pcall(require, name)
+  check('require ' .. name, ok, tostring(err))
+end
+
+loads 'which-key'
+loads 'tokyonight'
+loads 'mini.ai'
+loads 'mini.surround'
+loads 'mini.icons'
+loads 'todo-comments'
+loads 'lualine'
+
+check('colorscheme is tokyonight', (vim.g.colors_name or ''):match 'tokyonight' ~= nil, tostring(vim.g.colors_name))
+check('gh() helper defined by init.lua', type(_G.gh) == 'function', type(_G.gh))
+check('PackChanged hook registered', count_autocmds('', 'PackChanged') > 0 or #vim.api.nvim_get_autocmds { event = 'PackChanged' } > 0)
+
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
 else
