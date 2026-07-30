@@ -49,6 +49,17 @@ for _, mod in ipairs {
   check('require ' .. mod, ok, tostring(err))
 end
 
+print('== options ==')
+check('leader is space', vim.g.mapleader == ' ', tostring(vim.g.mapleader))
+check('nerd font enabled', vim.g.have_nerd_font == true, tostring(vim.g.have_nerd_font))
+check('number on', vim.o.number == true)
+check('relativenumber on', vim.o.relativenumber == true)
+check('undofile on', vim.o.undofile == true)
+check('signcolumn yes', vim.o.signcolumn == 'yes', vim.o.signcolumn)
+check('updatetime 200', vim.o.updatetime == 200, tostring(vim.o.updatetime))
+check('splitright', vim.o.splitright == true)
+check('termguicolors', vim.o.termguicolors == true)
+
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
 else
