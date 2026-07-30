@@ -185,6 +185,53 @@ for _, group in ipairs { 'highlight-yank', 'last-loc', 'close-with-q', 'auto-cre
   check('augroup config-' .. group, n > 0, ('%d autocmds'):format(n))
 end
 
+print '== diagnostics =='
+local dcfg = vim.diagnostic.config()
+
+check('virtual_text is a table', type(dcfg.virtual_text) == 'table', type(dcfg.virtual_text))
+check(
+  'virtual_text.current_line == false (all lines EXCEPT cursor line)',
+  type(dcfg.virtual_text) == 'table' and dcfg.virtual_text.current_line == false,
+  type(dcfg.virtual_text) == 'table' and tostring(dcfg.virtual_text.current_line) or 'n/a'
+)
+check('virtual_lines is a table', type(dcfg.virtual_lines) == 'table', type(dcfg.virtual_lines))
+check('virtual_lines.current_line == true', type(dcfg.virtual_lines) == 'table' and dcfg.virtual_lines.current_line == true)
+check('severity_sort on', dcfg.severity_sort == true)
+check('update_in_insert off', dcfg.update_in_insert == false)
+check('signs configured', dcfg.signs ~= false and dcfg.signs ~= nil)
+check('on_jump handler set', type(dcfg.jump) == 'table' and type(dcfg.jump.on_jump) == 'function')
+
+-- Sign glyphs must be non-empty. The plan document had these stripped to bare
+-- spaces at one point, and Neovim silently accepts an empty sign text -- so a
+-- length check is the only way to catch it.
+if type(dcfg.signs) == 'table' and type(dcfg.signs.text) == 'table' then
+  for _, sev in ipairs { 'ERROR', 'WARN', 'INFO', 'HINT' } do
+    local glyph = dcfg.signs.text[vim.diagnostic.severity[sev]]
+    check(('sign glyph %s non-empty'):format(sev), type(glyph) == 'string' and glyph:gsub('%s', '') ~= '', tostring(glyph))
+  end
+end
+
+for _, lhs in ipairs { 'gK', ']d', '[d', ']e', '[e', '<leader>cd' } do
+  check('nmap ' .. lhs, has_nmap(lhs))
+end
+
+print '== brazil excludes =='
+local ok_brazil, brazil = pcall(require, 'config.brazil')
+check('config.brazil loads', ok_brazil, tostring(brazil))
+if ok_brazil then
+  -- The build/ symlink is the specific cause of the measured gd latency.
+  check('excludes **/build', vim.tbl_contains(brazil.exclude_globs, '**/build'))
+  check('excludes **/.bemol', vim.tbl_contains(brazil.exclude_globs, '**/.bemol'))
+  check('excludes **/node_modules', vim.tbl_contains(brazil.exclude_globs, '**/node_modules'))
+  check('excludes **/target', vim.tbl_contains(brazil.exclude_globs, '**/target'))
+  check('python root markers include Config', vim.tbl_contains(brazil.python_root_markers, 'Config'))
+  check('python root markers include pyproject.toml', vim.tbl_contains(brazil.python_root_markers, 'pyproject.toml'))
+  check('node root markers include tsconfig.json', vim.tbl_contains(brazil.node_root_markers, 'tsconfig.json'))
+  check('exclude_globs is non-empty', #brazil.exclude_globs >= 8, tostring(#brazil.exclude_globs))
+  -- Pure data: requiring it must not mutate editor state.
+  check('config.brazil has no side effects', type(brazil) == 'table' and brazil.exclude_globs ~= nil)
+end
+
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
 else

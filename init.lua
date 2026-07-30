@@ -19,6 +19,11 @@ vim.g.have_nerd_font = true
 require 'config.options'
 require 'config.keymaps'
 require 'config.autocmds'
+require 'config.diagnostics'
+
+-- Required for its side-effect-free data by lua/plugins/lsp.lua; required here
+-- so a load error surfaces at startup rather than on first LSP attach.
+require 'config.brazil'
 
 -- MUST stay last. Signals that every require above completed; tests/health.lua
 -- treats its absence as "init.lua errored partway". Append new requires ABOVE.
