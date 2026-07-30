@@ -17,16 +17,18 @@ local function check(name, ok, msg)
   end
 end
 
-print('== environment ==')
+print '== environment =='
 -- has('nvim-0.12') rather than vim.version.ge(): semver ranks a prerelease
 -- below its release, so ge(0.12.0-dev, 0.12) is false on nightly builds even
 -- though they have the 0.12 APIs this config needs. Verified.
 check('neovim >= 0.12', vim.fn.has 'nvim-0.12' == 1, tostring(vim.version()))
-check('vim.pack available', type(vim.pack) == 'table' and type(vim.pack.add) == 'function',
-  ('vim.pack=%s add=%s'):format(type(vim.pack), type(vim.pack) == 'table' and type(vim.pack.add) or 'n/a'))
-check('vim.lsp.config available', type(vim.lsp.config) == 'table' or type(vim.lsp.config) == 'function',
-  ('type=%s'):format(type(vim.lsp.config)))
-check('running under nvim-dev', vim.fn.stdpath('config'):match('nvim%-dev') ~= nil, vim.fn.stdpath 'config')
+check(
+  'vim.pack available',
+  type(vim.pack) == 'table' and type(vim.pack.add) == 'function',
+  ('vim.pack=%s add=%s'):format(type(vim.pack), type(vim.pack) == 'table' and type(vim.pack.add) or 'n/a')
+)
+check('vim.lsp.config available', type(vim.lsp.config) == 'table' or type(vim.lsp.config) == 'function', ('type=%s'):format(type(vim.lsp.config)))
+check('running under nvim-dev', vim.fn.stdpath('config'):match 'nvim%-dev' ~= nil, vim.fn.stdpath 'config')
 
 -- HARNESS SELF-CHECK. `nvim -l` skips user config unless -u is given, so
 -- without it init.lua never runs and every check below would pass or fail for
@@ -35,9 +37,38 @@ check('running under nvim-dev', vim.fn.stdpath('config'):match('nvim%-dev') ~= n
 --
 -- Expect this to fail until Task 2 replaces init.lua. That is the intended red
 -- state, not a broken harness.
-check('init.lua ran (harness wired correctly)', vim.g.config_sentinel == true, 'sentinel missing -- run via tests/run.sh, or init.lua not yet rewritten (Task 2)')
+check(
+  'init.lua ran (harness wired correctly)',
+  vim.g.config_sentinel == true,
+  'sentinel missing -- run via tests/run.sh, or init.lua not yet rewritten (Task 2)'
+)
 
-print('== modules load ==')
+-- Two sentinels, deliberately. config_sentinel is set on init.lua's FIRST line
+-- and config_loaded on its LAST, so the pair distinguishes three states:
+--   neither  -> harness unwired (-u missing); nothing below means anything
+--   first    -> init.lua started but ERRORED partway (headless nvim reports the
+--               error and carries on, so this would otherwise look healthy)
+--   both     -> init.lua completed
+-- Without the second sentinel a mid-file error is invisible, and that becomes
+-- the most likely regression as init.lua grows to a dozen requires.
+check('init.lua completed without error', vim.g.config_loaded == true, 'init.lua errored partway -- check :messages at real startup')
+
+-- WIRING vs STATE. This loop requires each module itself, which applies its
+-- side effects. So the option assertions further down would pass even if
+-- init.lua had stopped requiring config.options entirely -- verified: commenting
+-- out that require left six checks green.
+--
+-- Capture what init.lua ALREADY loaded, before this loop pollutes package.loaded,
+-- so the two properties can be asserted separately.
+local preloaded = {}
+for _, mod in ipairs { 'config.options', 'config.keymaps', 'config.autocmds', 'config.diagnostics', 'config.brazil' } do
+  preloaded[mod] = package.loaded[mod] ~= nil
+end
+
+print '== init.lua wiring =='
+check('init.lua requires config.options', preloaded['config.options'], 'init.lua never loaded it; the option checks below would still pass')
+
+print '== modules load =='
 for _, mod in ipairs {
   'config.options',
   'config.keymaps',
@@ -49,7 +80,7 @@ for _, mod in ipairs {
   check('require ' .. mod, ok, tostring(err))
 end
 
-print('== options ==')
+print '== options =='
 check('leader is space', vim.g.mapleader == ' ', tostring(vim.g.mapleader))
 check('nerd font enabled', vim.g.have_nerd_font == true, tostring(vim.g.have_nerd_font))
 check('number on', vim.o.number == true)
@@ -71,15 +102,37 @@ check('termguicolors', vim.o.termguicolors == true)
 -- updatetime is the ONLY option this suite asserts that -l overrides; the other
 -- eight above survive intact (verified individually). It matters because it
 -- drives CursorHold, which gates LSP document highlighting.
-local ut = vim.system({
-  'nvim', '--headless', '-u', vim.fn.stdpath 'config' .. '/init.lua',
-  '-c', 'lua io.write(vim.o.updatetime)', '-c', 'qa',
-}, { text = true }):wait()
+--
+-- vim.v.progpath, not bare 'nvim': PATH may resolve to a different Neovim than
+-- the one running this suite, which would silently measure the wrong binary.
+-- It also avoids vim.system throwing on ENOENT, which would abort this script
+-- before the summary below and lose every other check's result.
+--
+-- :wait(15000) bounds it -- an unbounded wait on a hung child gives no output
+-- and no exit code, which is worse than a failure. Timeout surfaces as code 124.
+local startup_probe = {
+  vim.v.progpath,
+  '--headless',
+  '-u',
+  vim.fn.stdpath 'config' .. '/init.lua',
+  '-c',
+  'lua io.write(vim.o.updatetime)',
+  '-c',
+  'qa',
+}
+local ut = vim.system(startup_probe, { text = true }):wait(15000)
+
 -- Exact comparison on the trimmed output, not a substring match: `match '200'`
 -- would also accept 1200 or 2001.
 local ut_value = (ut.stdout or ''):gsub('%s', '')
-check('updatetime 200 (measured at real startup)', ut_value == '200',
-  ('child reported %q, code %d'):format(ut_value, ut.code))
+check('updatetime 200 (measured at real startup)', ut_value == '200', ('child reported %q, code %s'):format(ut_value, tostring(ut.code)))
+
+-- This child is the suite's ONLY observation of a real (non -l) startup, so it
+-- is also the only place that can catch a config that errors on load. Headless
+-- nvim prints the error to stderr and keeps going, so without these two checks a
+-- broken config still prints 200 and goes green.
+check('real startup exits clean', ut.code == 0, tostring(ut.code))
+check('real startup emits no errors', not (ut.stderr or ''):match 'E%d+', ut.stderr)
 
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
