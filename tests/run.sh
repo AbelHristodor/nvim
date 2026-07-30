@@ -4,7 +4,10 @@
 set -uo pipefail
 
 export NVIM_APPNAME=nvim-dev
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# -P resolves symlinks, so REPO is a physical path. This MUST match how LINKED
+# is computed below: a logical path here would false-mismatch whenever run.sh is
+# invoked through a symlink -- including via ~/.config/nvim-dev itself.
+REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO" || exit 1
 
 if [ ! -L "$HOME/.config/nvim-dev" ] || [ ! -d "$HOME/.config/nvim-dev" ]; then
@@ -18,7 +21,8 @@ fi
 LINKED="$(cd -P "$HOME/.config/nvim-dev" && pwd)"
 if [ "$LINKED" != "$REPO" ]; then
   echo "ERROR: ~/.config/nvim-dev -> $LINKED, but tests live in $REPO"
-  echo "  ln -sfn $REPO ~/.config/nvim-dev"
+  echo "Point the symlink at this checkout:"
+  echo "  ln -sfn '$REPO' ~/.config/nvim-dev"
   exit 1
 fi
 
