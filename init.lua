@@ -60,6 +60,7 @@ require 'plugins.ui'
 require 'plugins.treesitter'
 require 'plugins.picker' -- must precede lsp: LspAttach keymaps require fzf-lua
 require 'plugins.lsp'
+require 'plugins.explorer'
 
 -- MUST stay last. Signals that every require above completed; tests/health.lua
 -- treats its absence as "init.lua errored partway". Append new requires ABOVE.
