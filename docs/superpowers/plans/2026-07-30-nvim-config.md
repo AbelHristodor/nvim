@@ -383,11 +383,12 @@ Replace the entire contents of `init.lua` with:
 -- Fast modular Neovim config. See docs/superpowers/specs/ for design rationale.
 -- Requires Neovim 0.12+ (uses vim.pack).
 
--- Proves to tests/health.lua that this file actually executed. See the harness
--- self-check note in the plan's testing section.
+-- Proves to tests/health.lua that this file started executing. Paired with
+-- config_loaded on the last line, so the harness can tell "never ran" apart from
+-- "errored partway". Both are load-bearing; see tests/health.lua.
 vim.g.config_sentinel = true
 
--- Cache compiled Lua modules. Must be first.
+-- Cache compiled Lua modules. Must precede the first require of a config module.
 vim.loader.enable()
 
 -- Leader must be set before any plugin or keymap is defined.
@@ -398,7 +399,15 @@ vim.g.maplocalleader = ' '
 vim.g.have_nerd_font = true
 
 require 'config.options'
+
+-- MUST stay last. Signals that every require above completed; tests/health.lua
+-- treats its absence as "init.lua errored partway". Append new requires ABOVE.
+vim.g.config_loaded = true
 ```
+
+**IMPORTANT for every later task that adds a `require` to `init.lua`:** insert it
+ABOVE the `vim.g.config_loaded = true` line. That sentinel must remain the final
+statement or `tests/health.lua` will report the config as having errored partway.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -608,7 +617,7 @@ vim.api.nvim_create_autocmd('TermOpen', {
 
 - [ ] **Step 5: Wire both into `init.lua`**
 
-In `init.lua`, replace the line `require 'config.options'` with:
+In `init.lua`, replace the line `require 'config.options'` with: (keeping `vim.g.config_loaded = true` as the final line)
 
 ```lua
 require 'config.options'
@@ -764,7 +773,7 @@ vim.keymap.set('n', '<leader>cd', vim.diagnostic.open_float, { desc = 'Line diag
 
 - [ ] **Step 4: Wire it into `init.lua`**
 
-In `init.lua`, after `require 'config.autocmds'`, add:
+In `init.lua`, after `require 'config.autocmds'`, add: (and ABOVE `vim.g.config_loaded = true`, which must stay last)
 
 ```lua
 require 'config.diagnostics'
@@ -897,7 +906,7 @@ return M
 
 - [ ] **Step 4: Wire it into `init.lua`**
 
-In `init.lua`, after `require 'config.diagnostics'`, add:
+In `init.lua`, after `require 'config.diagnostics'`, add: (and ABOVE `vim.g.config_loaded = true`, which must stay last)
 
 ```lua
 -- Required for its side-effect-free data by lua/plugins/lsp.lua; required here
@@ -1308,7 +1317,7 @@ vim.api.nvim_create_autocmd('FileType', {
 
 - [ ] **Step 4: Wire it into `init.lua`**
 
-In `init.lua`, after `require 'plugins.ui'`, add:
+In `init.lua`, after `require 'plugins.ui'`, add: (and ABOVE `vim.g.config_loaded = true`, which must stay last)
 
 ```lua
 require 'plugins.treesitter'
@@ -1681,7 +1690,7 @@ end
 
 - [ ] **Step 4: Wire it into `init.lua`**
 
-In `init.lua`, after `require 'plugins.treesitter'`, add:
+In `init.lua`, after `require 'plugins.treesitter'`, add: (and ABOVE `vim.g.config_loaded = true`, which must stay last)
 
 ```lua
 require 'plugins.picker' -- must precede lsp: LspAttach keymaps require fzf-lua
@@ -1859,7 +1868,7 @@ vim.keymap.set('n', '-', '<cmd>Oil<CR>', { desc = 'Open parent directory' })
 
 - [ ] **Step 5: Wire the explorer into `init.lua`**
 
-In `init.lua`, after `require 'plugins.lsp'`, add:
+In `init.lua`, after `require 'plugins.lsp'`, add: (and ABOVE `vim.g.config_loaded = true`, which must stay last)
 
 ```lua
 require 'plugins.explorer'
@@ -2222,7 +2231,7 @@ config:
 
 - [ ] **Step 6: Wire both into `init.lua`**
 
-In `init.lua`, after `require 'plugins.explorer'`, add:
+In `init.lua`, after `require 'plugins.explorer'`, add: (and ABOVE `vim.g.config_loaded = true`, which must stay last)
 
 ```lua
 require 'plugins.completion'
@@ -2564,7 +2573,7 @@ map('n', '<leader>tS', function() nt.run.stop() end, { desc = 'Stop test run' })
 
 - [ ] **Step 8: Wire them all into `init.lua`**
 
-In `init.lua`, after `require 'plugins.format'`, add:
+In `init.lua`, after `require 'plugins.format'`, add: (and ABOVE `vim.g.config_loaded = true`, which must stay last)
 
 ```lua
 require 'plugins.git'
