@@ -149,9 +149,14 @@ local function check(name, ok, msg)
 end
 
 print('== environment ==')
-check('neovim >= 0.12', vim.version.ge(vim.version(), '0.12'), tostring(vim.version()))
-check('vim.pack available', type(vim.pack) == 'table' and type(vim.pack.add) == 'function')
-check('vim.lsp.config available', type(vim.lsp.config) == 'table' or type(vim.lsp.config) == 'function')
+-- has('nvim-0.12') rather than vim.version.ge(): semver ranks a prerelease
+-- below its release, so ge(0.12.0-dev, 0.12) is false on nightly builds even
+-- though they have the 0.12 APIs this config needs. Verified empirically.
+check('neovim >= 0.12', vim.fn.has 'nvim-0.12' == 1, tostring(vim.version()))
+check('vim.pack available', type(vim.pack) == 'table' and type(vim.pack.add) == 'function',
+  ('vim.pack=%s add=%s'):format(type(vim.pack), type(vim.pack) == 'table' and type(vim.pack.add) or 'n/a'))
+check('vim.lsp.config available', type(vim.lsp.config) == 'table' or type(vim.lsp.config) == 'function',
+  ('type=%s'):format(type(vim.lsp.config)))
 check('running under nvim-dev', vim.fn.stdpath('config'):match('nvim%-dev') ~= nil, vim.fn.stdpath 'config')
 
 -- HARNESS SELF-CHECK. `nvim -l` skips user config unless -u is given, so
@@ -175,7 +180,11 @@ for _, mod in ipairs {
   check('require ' .. mod, ok, tostring(err))
 end
 
-print(('\n%d failure(s)'):format(#failures))
+if #failures > 0 then
+  print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
+else
+  print '\n0 failure(s)'
+end
 vim.cmd(#failures == 0 and 'cq 0' or 'cq 1')
 ```
 
@@ -193,8 +202,17 @@ export NVIM_APPNAME=nvim-dev
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO" || exit 1
 
-if [ ! -L "$HOME/.config/nvim-dev" ]; then
-  echo "ERROR: ~/.config/nvim-dev symlink missing. Run:"
+if [ ! -L "$HOME/.config/nvim-dev" ] || [ ! -d "$HOME/.config/nvim-dev" ]; then
+  echo "ERROR: ~/.config/nvim-dev is not a symlink to a directory. Run:"
+  echo "  ln -sfn $REPO ~/.config/nvim-dev"
+  exit 1
+fi
+
+# Assert the symlink points HERE. Existence alone is not enough: a stale link
+# would silently run these tests against a different checkout's config.
+LINKED="$(cd -P "$HOME/.config/nvim-dev" && pwd)"
+if [ "$LINKED" != "$REPO" ]; then
+  echo "ERROR: ~/.config/nvim-dev -> $LINKED, but tests live in $REPO"
   echo "  ln -sfn $REPO ~/.config/nvim-dev"
   exit 1
 fi
