@@ -63,7 +63,8 @@ check('termguicolors', vim.o.termguicolors == true)
 --
 -- Nvim's -l scripting mode forces updatetime=1 and updatecount=0 AFTER init.lua
 -- runs, to make scripts responsive. Verified: under -l the value is always 1
--- (nvim_get_option_info2 reports was_set=false, last_set_sid=0), while the same
+-- even though init.lua did set it (nvim_get_option_info2 reports was_set=true,
+-- last_set_sid=5 -- the assignment is recorded, then overridden), while the same
 -- config at normal startup yields 200. So an in-process check here would be
 -- permanently unsatisfiable -- a test that can never go green.
 --
@@ -74,8 +75,11 @@ local ut = vim.system({
   'nvim', '--headless', '-u', vim.fn.stdpath 'config' .. '/init.lua',
   '-c', 'lua io.write(vim.o.updatetime)', '-c', 'qa',
 }, { text = true }):wait()
-check('updatetime 200 (measured at real startup)', (ut.stdout or ''):match '200' ~= nil,
-  ('child reported %q, code %d'):format((ut.stdout or ''):gsub('%s', ''), ut.code))
+-- Exact comparison on the trimmed output, not a substring match: `match '200'`
+-- would also accept 1200 or 2001.
+local ut_value = (ut.stdout or ''):gsub('%s', '')
+check('updatetime 200 (measured at real startup)', ut_value == '200',
+  ('child reported %q, code %d'):format(ut_value, ut.code))
 
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
