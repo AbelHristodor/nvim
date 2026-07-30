@@ -241,14 +241,14 @@ local function loads(name)
 end
 
 loads 'which-key'
-loads 'tokyonight'
+loads 'catppuccin'
 loads 'mini.ai'
 loads 'mini.surround'
 loads 'mini.icons'
 loads 'todo-comments'
 loads 'lualine'
 
-check('colorscheme is tokyonight', (vim.g.colors_name or ''):match 'tokyonight' ~= nil, tostring(vim.g.colors_name))
+check('colorscheme is catppuccin', (vim.g.colors_name or ''):match 'catppuccin' ~= nil, tostring(vim.g.colors_name))
 check('gh() helper defined by init.lua', type(_G.gh) == 'function', type(_G.gh))
 check('PackChanged hook registered', count_autocmds('', 'PackChanged') > 0 or #vim.api.nvim_get_autocmds { event = 'PackChanged' } > 0)
 
@@ -268,18 +268,66 @@ if ok_ts then
 end
 
 print '== picker =='
-loads 'fzf-lua'
+loads 'telescope'
 check('fzf binary on PATH', vim.fn.executable 'fzf' == 1)
 check('rg binary on PATH', vim.fn.executable 'rg' == 1)
 check('fd binary on PATH', vim.fn.executable 'fd' == 1)
 
--- jump1 makes gd land directly on a single result instead of opening a picker.
-local fzf_ok, fzf_globals = pcall(function() return require('fzf-lua.config').globals end)
-check('fzf-lua globals readable', fzf_ok, tostring(fzf_globals))
-if fzf_ok and fzf_globals and fzf_globals.lsp then check('fzf-lua lsp.jump1 enabled', fzf_globals.lsp.jump1 == true, tostring(fzf_globals.lsp.jump1)) end
+-- The native C sorter is what keeps telescope usable on a ~99k-file workspace.
+local ts_ok, ts_mod = pcall(require, 'telescope')
+check('telescope loads', ts_ok, tostring(ts_mod))
+if ts_ok then
+  check('fzf-native extension loaded', ts_mod.extensions and ts_mod.extensions.fzf ~= nil, 'native sorter missing -- run make in telescope-fzf-native.nvim')
+  check('ui-select extension loaded', ts_mod.extensions and ts_mod.extensions['ui-select'] ~= nil)
+end
+-- Telescope auto-jumps on a lone LSP result unless jump_type == 'never'; this
+-- config must never set that, or `gd` regresses from a jump to a menu.
+local lsp_src = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/picker.lua', 'r')
+if lsp_src then
+  local src = lsp_src:read 'a'
+  lsp_src:close()
+  check('picker does not disable LSP auto-jump', src:match "jump_type%s*=%s*'never'" == nil, 'gd would open a picker instead of jumping')
+end
 
 for _, lhs in ipairs { '<leader>ff', '<leader>sg', '<leader>/', '<leader>fb', '<leader>sw', '<leader>fg' } do
   check('nmap ' .. lhs, has_nmap(lhs))
+end
+
+-- Keymaps must match LazyVim's descriptions, not merely exist. An earlier version
+-- had grep on <leader>fg (LazyVim's git-files key) and sd/sD inverted, which
+-- "does a mapping exist" checks could never catch.
+local lazyvim_keys = {
+  ['<leader>ff'] = 'Find Files (Root Dir)',
+  ['<leader>fg'] = 'Find Files (git-files)',
+  ['<leader>fb'] = 'Buffers',
+  ['<leader>fr'] = 'Recent',
+  ['<leader>/'] = 'Grep (Root Dir)',
+  ['<leader>sg'] = 'Grep (Root Dir)',
+  ['<leader>sd'] = 'Diagnostics',
+  ['<leader>sD'] = 'Buffer Diagnostics',
+  ['<leader>sc'] = 'Command History',
+  ['<leader>sC'] = 'Commands',
+  ['<leader>sR'] = 'Resume',
+  ['<leader>gs'] = 'Status',
+}
+local nmaps = {}
+for _, m in ipairs(vim.api.nvim_get_keymap 'n') do
+  nmaps[m.lhs] = m.desc or ''
+end
+for lhs, want in pairs(lazyvim_keys) do
+  local stored = lhs:gsub('^<leader>', vim.g.mapleader or ' ')
+  check(('LazyVim desc %s'):format(lhs), nmaps[stored] == want, ('want %q got %q'):format(want, tostring(nmaps[stored])))
+end
+
+print '== explorer / theme / trouble =='
+check('nvim-tree deferred', package.loaded['nvim-tree'] == nil, 'loaded eagerly')
+check('trouble deferred', package.loaded.trouble == nil, 'loaded eagerly')
+check('explorer mapped <leader>e', has_nmap '<leader>e')
+check('explorer mapped <leader>fe', has_nmap '<leader>fe')
+check('netrw disabled (nvim-tree requires it)', vim.g.loaded_netrwPlugin == 1)
+check('colorscheme is catppuccin-macchiato', vim.g.colors_name == 'catppuccin-macchiato', tostring(vim.g.colors_name))
+for _, lhs in ipairs { '<leader>xx', '<leader>xX', '<leader>cs', '<leader>cS', '<leader>xt' } do
+  check('trouble nmap ' .. lhs, has_nmap(lhs))
 end
 
 print '== lsp =='

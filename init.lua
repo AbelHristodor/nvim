@@ -16,6 +16,11 @@ vim.g.maplocalleader = ' '
 -- FiraCode Nerd Font is configured in both wezterm and iTerm2.
 vim.g.have_nerd_font = true
 
+-- nvim-tree requires netrw be disabled, and it must happen before netrw's own
+-- plugin files load. Also saves ~3.5ms of startup (netrwPlugin.vim + matchit).
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+
 -- Some plugins need a build step after install or update. vim.pack emits
 -- PackChanged for this; see :help vim.pack-events. Registered BEFORE the first
 -- vim.pack.add so install-time hooks fire.
@@ -35,6 +40,9 @@ vim.api.nvim_create_autocmd('PackChanged', {
 
     if name == 'LuaSnip' and vim.fn.has 'win32' ~= 1 and vim.fn.executable 'make' == 1 then
       run_build(name, { 'make', 'install_jsregexp' }, path)
+    elseif name == 'telescope-fzf-native.nvim' and vim.fn.executable 'make' == 1 then
+      -- The native C sorter; without it telescope falls back to a slower Lua one.
+      run_build(name, { 'make' }, path)
     elseif name == 'nvim-treesitter' then
       if not ev.data.active then vim.cmd.packadd 'nvim-treesitter' end
       vim.cmd 'TSUpdate'
@@ -58,7 +66,7 @@ require 'config.brazil'
 
 require 'plugins.ui'
 require 'plugins.treesitter'
-require 'plugins.picker' -- must precede lsp: LspAttach keymaps require fzf-lua
+require 'plugins.picker' -- must precede lsp: LspAttach keymaps require telescope
 require 'plugins.lsp'
 require 'plugins.explorer'
 require 'plugins.completion'

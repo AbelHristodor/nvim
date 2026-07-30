@@ -253,12 +253,16 @@ vim.api.nvim_create_autocmd('LspAttach', {
       setup_mason()
     end)
 
-    local fzf = require 'fzf-lua'
+    -- Telescope's LSP pickers jump straight to a lone result rather than
+    -- opening a picker (its __lsp.lua: `if #items == 1 and jump_type ~= "never"`),
+    -- so `gd` stays a direct jump. That property is the whole point of this
+    -- config; if a future picker lacks it, `gd` regresses to a menu.
+    local builtin = require 'telescope.builtin'
 
-    map('gd', fzf.lsp_definitions, 'Goto definition')
-    map('gr', fzf.lsp_references, 'References')
-    map('gI', fzf.lsp_implementations, 'Goto implementation')
-    map('gy', fzf.lsp_typedefs, 'Goto type definition')
+    map('gd', builtin.lsp_definitions, 'Goto definition')
+    map('gr', builtin.lsp_references, 'References')
+    map('gI', builtin.lsp_implementations, 'Goto implementation')
+    map('gy', builtin.lsp_type_definitions, 'Goto type definition')
     map('gD', vim.lsp.buf.declaration, 'Goto declaration')
     map('K', vim.lsp.buf.hover, 'Hover')
     -- `gK` is signature help, matching LazyVim. The diagnostics virtual_lines
@@ -269,8 +273,8 @@ vim.api.nvim_create_autocmd('LspAttach', {
     map('<C-k>', vim.lsp.buf.signature_help, 'Signature help', 'i')
     map('<leader>cr', vim.lsp.buf.rename, 'Rename')
     map('<leader>ca', vim.lsp.buf.code_action, 'Code action', { 'n', 'x' })
-    map('<leader>cs', fzf.lsp_document_symbols, 'Document symbols')
-    map('<leader>cS', fzf.lsp_live_workspace_symbols, 'Workspace symbols')
+    map('<leader>cs', builtin.lsp_document_symbols, 'Document symbols')
+    map('<leader>cS', builtin.lsp_dynamic_workspace_symbols, 'Workspace symbols')
 
     local client = vim.lsp.get_client_by_id(event.data.client_id)
 

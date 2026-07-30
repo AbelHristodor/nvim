@@ -10,14 +10,16 @@
 -- use without a `packadd` dance.
 --
 -- What must load eagerly and why:
---   tokyonight -- the colorscheme; deferring it means a visible flash of default
+--   catppuccin -- the colorscheme; deferring it means a visible flash of default
 --                 colours, and every later plugin reads its highlight groups.
 --   mini.icons -- lualine and the pickers ask for icons during their own setup.
 --   lualine    -- draws the statusline on the first redraw.
 -- Everything else is deferred until it is actually needed.
 
 vim.pack.add {
-  gh 'folke/tokyonight.nvim',
+  -- `name` is required: the repo is catppuccin/nvim, so vim.pack would infer the
+  -- directory name "nvim" -- unhelpfully generic and a collision risk.
+  { src = gh 'catppuccin/nvim', name = 'catppuccin' },
   gh 'nvim-mini/mini.nvim',
   gh 'nvim-lualine/lualine.nvim',
 }
@@ -29,11 +31,27 @@ vim.pack.add({
 }, { load = false })
 
 -- Colorscheme first, so later plugins pick up its highlight groups.
-require('tokyonight').setup {
-  style = 'night',
-  styles = { comments = { italic = false } },
+-- The repo is 'catppuccin/nvim' but the plugin directory and module are both
+-- named `catppuccin`, so vim.pack's inferred name works out.
+require('catppuccin').setup {
+  flavour = 'macchiato',
+  styles = { comments = {} }, -- no italics
+  integrations = {
+    treesitter = true,
+    native_lsp = { enabled = true, underlines = { errors = { 'undercurl' }, warnings = { 'undercurl' } } },
+    telescope = { enabled = true },
+    gitsigns = true,
+    mini = { enabled = true },
+    which_key = true,
+    nvim_tree = true,
+    dap = true,
+    dap_ui = true,
+    blink_cmp = true,
+    lsp_trouble = true,
+    markdown = true,
+  },
 }
-vim.cmd.colorscheme 'tokyonight-night'
+vim.cmd.colorscheme 'catppuccin-macchiato'
 
 -- Icons. A Nerd Font is configured in both wezterm and iTerm2.
 require('mini.icons').setup()
@@ -41,7 +59,9 @@ MiniIcons.mock_nvim_web_devicons() -- for plugins that still require nvim-web-de
 
 require('lualine').setup {
   options = {
-    theme = 'tokyonight',
+    -- catppuccin ships its lualine theme as `catppuccin-nvim`; passing
+    --     'catppuccin' makes lualine emit a config notice and fall back.
+    theme = 'catppuccin-nvim',
     globalstatus = true,
     section_separators = '',
     component_separators = '|',
@@ -100,3 +120,43 @@ vim.api.nvim_create_autocmd('SafeState', {
     }
   end,
 })
+
+-- trouble.nvim: a proper list for diagnostics, symbols and LSP results.
+--
+-- DEFERRED: registered on first use rather than at startup, for the reason
+-- documented in lua/plugins/completion.lua (`load = false` alone still lets
+-- Neovim source the plugin's plugin/ files during the same startup).
+--
+-- Keymaps mirror LazyVim's trouble extra exactly.
+local trouble_specs = { gh 'folke/trouble.nvim' }
+local trouble_ready = false
+
+local function setup_trouble()
+  if trouble_ready then return end
+  trouble_ready = true
+  vim.pack.add(trouble_specs)
+  require('trouble').setup {}
+end
+
+---Runs a :Trouble subcommand, loading the plugin first.
+---
+--- Uses the Lua API rather than `vim.cmd('Trouble ...')`: the :Trouble command is
+--- created by the plugin's own plugin/ file, which has not run yet at the moment
+--- this keymap first fires, so the ex-command form errors on first press.
+---@param mode string
+---@param opts? table
+---@return fun()
+local function trouble(mode, opts)
+  return function()
+    setup_trouble()
+    require('trouble').toggle(vim.tbl_extend('force', { mode = mode }, opts or {}))
+  end
+end
+
+vim.keymap.set('n', '<leader>xx', trouble 'diagnostics', { desc = 'Diagnostics (Trouble)' })
+vim.keymap.set('n', '<leader>xX', trouble('diagnostics', { filter = { buf = 0 } }), { desc = 'Buffer Diagnostics (Trouble)' })
+vim.keymap.set('n', '<leader>cs', trouble 'symbols', { desc = 'Symbols (Trouble)' })
+vim.keymap.set('n', '<leader>cS', trouble 'lsp', { desc = 'LSP references/definitions/... (Trouble)' })
+vim.keymap.set('n', '<leader>xL', trouble 'loclist', { desc = 'Location List (Trouble)' })
+vim.keymap.set('n', '<leader>xQ', trouble 'qflist', { desc = 'Quickfix List (Trouble)' })
+vim.keymap.set('n', '<leader>xt', trouble 'todo', { desc = 'Todo (Trouble)' })

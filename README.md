@@ -95,11 +95,13 @@ key-for-key** (taken from its own fzf-lua extra) so muscle memory transfers.
 | `<leader>ca` / `cr` / `cf` | code action / rename / format |
 | `<leader>gs` / `gc` / `gd` / `gS` | git status / commits / diff hunks / stash |
 | `<leader>gg` | lazygit |
-| `<leader>e` / `-` | file explorer (float) / parent directory |
+| `<leader>e` / `<leader>E` | file tree sidebar (root dir / cwd) |
 | `<leader>ud` | toggle diagnostic virtual_lines |
 | `<leader>uf` / `uF` | toggle format-on-save global / buffer |
 | `]d` / `[d` / `]e` / `[e` | next/prev diagnostic, next/prev error |
 | `]h` / `[h` | next / previous git hunk |
+| `<leader>xx` / `xX` / `xt` | diagnostics / buffer diagnostics / todo (Trouble) |
+| `<leader>cs` / `cS` | symbols / LSP refs (Trouble) |
 | `<leader>d*` / `<leader>t*` | debug / test |
 | `<C-h/j/k/l>` | window navigation |
 
@@ -109,3 +111,16 @@ Two deliberate departures from LazyVim:
   on `gK`, but LazyVim uses `gK` for signature help and that binding wins.
 * **No `<leader>cc` / `cC`** (run/refresh codelens). Codelens is deliberately
   absent — see the performance notes above.
+
+## Plugin set
+
+Theme is **catppuccin macchiato**. Picker is **telescope** with the native C
+sorter (`telescope-fzf-native`, built by the `PackChanged` hook — without it the
+Lua sorter is slow on large repos). File tree is **nvim-tree** on `<leader>e`.
+Lists are **trouble.nvim**. Also: gitsigns, mini.ai/surround/icons, lualine,
+which-key, todo-comments, treesitter, blink.cmp, conform, nvim-lint,
+rustaceanvim, nvim-dap, neotest.
+
+Telescope's LSP pickers jump straight to a lone result rather than opening a
+menu, so `gd` stays a direct jump — `tests/health.lua` asserts the config never
+sets `jump_type = 'never'`, which would break that.
