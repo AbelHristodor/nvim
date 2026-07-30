@@ -57,8 +57,11 @@ vim.diagnostic.config {
   jump = { on_jump = on_jump },
 }
 
--- Toggle virtual_lines. Mirrors *diagnostic-toggle-virtual-lines-example*.
-vim.keymap.set('n', 'gK', function()
+-- Toggle virtual_lines. Mirrors *diagnostic-toggle-virtual-lines-example*, but
+-- on <leader>ud rather than the doc's `gK`: LazyVim binds `gK` to LSP signature
+-- help and matching that muscle memory takes priority. <leader>u* is LazyVim's
+-- own UI-toggle prefix, so this fits its scheme.
+vim.keymap.set('n', '<leader>ud', function()
   local enabled = vim.diagnostic.config().virtual_lines
   if enabled then
     vim.diagnostic.config { virtual_lines = false }

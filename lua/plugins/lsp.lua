@@ -209,13 +209,24 @@ local function setup_mason()
   }
 end
 
--- Mason's own commands need it loaded first. Each re-declares the command after
--- setup so the original invocation still runs.
+-- Mason's own commands need it loaded first, so each is registered as a stub
+-- that loads mason and then re-dispatches.
+--
+-- `vim.cmd` is deliberately deferred with vim.schedule here. The stub is running
+-- as the handler for `cmd`, and setup_mason() replaces that command definition
+-- mid-execution; re-dispatching synchronously can hit the half-registered
+-- command. Scheduling lets the current command finish first. Found because
+-- `MasonToolsInstall` reported success while mason itself never loaded, so
+-- nothing was installed.
 for _, cmd in ipairs { 'Mason', 'MasonInstall', 'MasonUninstall', 'MasonUninstallAll', 'MasonLog', 'MasonUpdate', 'MasonToolsInstall', 'MasonToolsUpdate' } do
   vim.api.nvim_create_user_command(cmd, function(opts)
-    vim.api.nvim_del_user_command(cmd)
+    pcall(vim.api.nvim_del_user_command, cmd)
     setup_mason()
-    vim.cmd(('%s %s'):format(cmd, opts.args))
+    local target, args = cmd, opts.args
+    vim.schedule(function()
+      local ok, err = pcall(vim.cmd, vim.trim(('%s %s'):format(target, args)))
+      if not ok then vim.notify(('%s failed: %s'):format(target, err), vim.log.levels.ERROR) end
+    end)
   end, { nargs = '*', desc = 'Load mason, then run ' .. cmd })
 end
 
@@ -250,11 +261,11 @@ vim.api.nvim_create_autocmd('LspAttach', {
     map('gy', fzf.lsp_typedefs, 'Goto type definition')
     map('gD', vim.lsp.buf.declaration, 'Goto declaration')
     map('K', vim.lsp.buf.hover, 'Hover')
-    -- Signature help is deliberately NOT on `gK`: lua/config/diagnostics.lua
-    -- owns `gK` as the virtual_lines toggle (per the spec's keymap table), and
-    -- a buffer-local LspAttach map would silently shadow it in exactly the
-    -- buffers where the toggle is most useful.
-    map('<leader>ck', vim.lsp.buf.signature_help, 'Signature help')
+    -- `gK` is signature help, matching LazyVim. The diagnostics virtual_lines
+    -- toggle lives on <leader>ud instead (lua/config/diagnostics.lua) -- an
+    -- earlier version had them the other way round, which silently shadowed
+    -- LazyVim's binding in exactly the buffers where it is used most.
+    map('gK', vim.lsp.buf.signature_help, 'Signature help')
     map('<C-k>', vim.lsp.buf.signature_help, 'Signature help', 'i')
     map('<leader>cr', vim.lsp.buf.rename, 'Rename')
     map('<leader>ca', vim.lsp.buf.code_action, 'Code action', { 'n', 'x' })

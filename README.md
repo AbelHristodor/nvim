@@ -75,19 +75,37 @@ of them except `rust_analyzer`, which belongs to rustaceanvim; this is why
 
 ## Keymaps
 
-Leader is `<Space>`. Scheme follows LazyVim conventions.
+Leader is `<Space>`. **Find, grep, search, git and LSP keys mirror LazyVim
+key-for-key** (taken from its own fzf-lua extra) so muscle memory transfers.
 
 | Key | Action |
 |---|---|
-| `gd` / `gr` / `gI` / `gy` | definition / references / implementation / type def |
+| `gd` / `gr` / `gI` / `gy` / `gD` | definition / references / implementation / type def / declaration |
 | `K` | hover (grouped hover actions in Rust) |
-| `gK` | toggle diagnostic virtual_lines |
+| `gK` / `<C-k>` (insert) | signature help |
+| `<leader>ff` / `<leader><space>` | find files (root dir) |
+| `<leader>fg` | find files (**git-files**, not grep) |
+| `<leader>fb` / `fB` / `fr` / `fc` | buffers / all buffers / recent / config file |
+| `<leader>/` and `<leader>sg` | **grep** (root dir) — both, as in LazyVim |
+| `<leader>sw` | grep word (normal) / selection (visual) |
+| `<leader>sd` / `sD` | workspace / buffer diagnostics |
+| `<leader>sc` / `sC` | command history / commands |
+| `<leader>sR` | resume last picker |
+| `<leader>sh` / `sk` / `sb` / `sj` / `sm` / `sq` / `sl` | help / keymaps / buffer lines / jumps / marks / quickfix / loclist |
 | `<leader>ca` / `cr` / `cf` | code action / rename / format |
-| `<leader>ff` / `fg` / `fb` / `fr` | find files / grep / buffers / recent |
-| `<leader>e` / `-` | file explorer (float) / parent directory |
+| `<leader>gs` / `gc` / `gd` / `gS` | git status / commits / diff hunks / stash |
 | `<leader>gg` | lazygit |
+| `<leader>e` / `-` | file explorer (float) / parent directory |
+| `<leader>ud` | toggle diagnostic virtual_lines |
 | `<leader>uf` / `uF` | toggle format-on-save global / buffer |
 | `]d` / `[d` / `]e` / `[e` | next/prev diagnostic, next/prev error |
 | `]h` / `[h` | next / previous git hunk |
 | `<leader>d*` / `<leader>t*` | debug / test |
 | `<C-h/j/k/l>` | window navigation |
+
+Two deliberate departures from LazyVim:
+
+* **`<leader>ud`** holds the diagnostic virtual_lines toggle. Neovim's docs put it
+  on `gK`, but LazyVim uses `gK` for signature help and that binding wins.
+* **No `<leader>cc` / `cC`** (run/refresh codelens). Codelens is deliberately
+  absent — see the performance notes above.

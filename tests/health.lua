@@ -211,7 +211,7 @@ if type(dcfg.signs) == 'table' and type(dcfg.signs.text) == 'table' then
   end
 end
 
-for _, lhs in ipairs { 'gK', ']d', '[d', ']e', '[e', '<leader>cd' } do
+for _, lhs in ipairs { '<leader>ud', ']d', '[d', ']e', '[e', '<leader>cd' } do
   check('nmap ' .. lhs, has_nmap(lhs))
 end
 
@@ -278,7 +278,7 @@ local fzf_ok, fzf_globals = pcall(function() return require('fzf-lua.config').gl
 check('fzf-lua globals readable', fzf_ok, tostring(fzf_globals))
 if fzf_ok and fzf_globals and fzf_globals.lsp then check('fzf-lua lsp.jump1 enabled', fzf_globals.lsp.jump1 == true, tostring(fzf_globals.lsp.jump1)) end
 
-for _, lhs in ipairs { '<leader>ff', '<leader>fg', '<leader>fb', '<leader>sw' } do
+for _, lhs in ipairs { '<leader>ff', '<leader>sg', '<leader>/', '<leader>fb', '<leader>sw', '<leader>fg' } do
   check('nmap ' .. lhs, has_nmap(lhs))
 end
 
