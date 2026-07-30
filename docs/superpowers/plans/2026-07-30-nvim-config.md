@@ -12,6 +12,55 @@
 
 ---
 
+## Implementation findings (added during execution)
+
+Recorded here so they are not re-learned. All measured, not inferred.
+
+**1. `nvim -l` skips `init.lua` unless `-u` is also passed.** Without it every
+assertion in the suite is vacuous. `tests/run.sh` supplies it; do not remove it.
+
+**2. `vim.pack.add(spec, { load = false })` does NOT keep a plugin off the
+startup path.** It defers sourcing at add-time but still places the plugin on
+`runtimepath`, so Neovim sources its `plugin/` files later in the same startup.
+Measured with blink.cmp: `init.lua` finished at 119ms, blink's `plugin/` file was
+sourced at 135ms anyway, dragging in ~23 blink and ~59 LuaSnip modules. The
+working pattern is to not call `vim.pack.add` until first use; it is idempotent,
+so calling it from a lazy hook is safe. Applied to completion, dap and neotest.
+
+**3. Deferring mason breaks every Mason-installed server unless PATH is fixed
+manually.** `require('mason').setup()` normally prepends `$MASON/bin`; with mason
+deferred, servers spawn first and `executable()` returns 0 — no client, no error
+message. `lua/plugins/lsp.lua` now prepends the path directly.
+
+**4. `nvim -l` forces `updatetime=1`** after `init.lua` runs, so asserting it
+in-process is unsatisfiable. Measured in a child process instead.
+
+**5. `nvim_get_autocmds` throws `E5113` for an unknown augroup** rather than
+returning an empty list, which aborts the test script mid-run and suppresses the
+summary. Wrap in `pcall`.
+
+**6. Two `once` autocmds sharing one augroup delete each other.** `CmdlineEnter`
+fires for `-c` startup commands, so it consumed the `InsertEnter` handler and
+completion never loaded at all. Use a plain guard flag instead of `once`.
+
+**7. Leader keymaps store the literal leader character.** `<leader>bd` is stored
+as `" bd"`, not `"<Space>bd"`. Control keys are uppercased (`<C-h>` -> `<C-H>`).
+
+**8. `vim.lsp.config[name]` (index) reads a config; `vim.lsp.config(name)` (call)
+is the setter and raises.** There is no `vim.lsp.config._enabled`; use
+`vim.lsp.is_enabled(name)`.
+
+**9. Startup budget:** the spec's 60ms proved unreachable for this plugin set.
+The user relaxed it in favour of maximising lazy-loading. Final: ~94-120ms
+median, from 254 startup requires down to ~106. Gate set to 125ms as a
+regression detector, not an aspiration.
+
+**10. `~/workplace` is itself a symlink**, so plain `find` reports 0 files and
+undercounts by ~800x. `find -L` reveals 99,186 reachable `.py` files — which is
+what the Brazil excludes prevent language servers from indexing.
+
+---
+
 ## Testing approach (read this before Task 1)
 
 There is no `busted` or `luarocks` on this machine and Lua config code is mostly
