@@ -56,9 +56,26 @@ check('number on', vim.o.number == true)
 check('relativenumber on', vim.o.relativenumber == true)
 check('undofile on', vim.o.undofile == true)
 check('signcolumn yes', vim.o.signcolumn == 'yes', vim.o.signcolumn)
-check('updatetime 200', vim.o.updatetime == 200, tostring(vim.o.updatetime))
 check('splitright', vim.o.splitright == true)
 check('termguicolors', vim.o.termguicolors == true)
+
+-- `updatetime` must be asserted in a CHILD process, not here.
+--
+-- Nvim's -l scripting mode forces updatetime=1 and updatecount=0 AFTER init.lua
+-- runs, to make scripts responsive. Verified: under -l the value is always 1
+-- (nvim_get_option_info2 reports was_set=false, last_set_sid=0), while the same
+-- config at normal startup yields 200. So an in-process check here would be
+-- permanently unsatisfiable -- a test that can never go green.
+--
+-- updatetime is the ONLY option this suite asserts that -l overrides; the other
+-- eight above survive intact (verified individually). It matters because it
+-- drives CursorHold, which gates LSP document highlighting.
+local ut = vim.system({
+  'nvim', '--headless', '-u', vim.fn.stdpath 'config' .. '/init.lua',
+  '-c', 'lua io.write(vim.o.updatetime)', '-c', 'qa',
+}, { text = true }):wait()
+check('updatetime 200 (measured at real startup)', (ut.stdout or ''):match '200' ~= nil,
+  ('child reported %q, code %d'):format((ut.stdout or ''):gsub('%s', ''), ut.code))
 
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
