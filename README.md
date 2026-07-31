@@ -99,6 +99,7 @@ key-for-key** (taken from its own fzf-lua extra) so muscle memory transfers.
 | `<leader>e` / `<leader>E` | file tree sidebar (root dir / cwd) |
 | `<leader>cv` | select Python interpreter (`:VenvSelect`) |
 | `<leader>ud` | toggle diagnostic virtual_lines |
+| `<leader>uh` | toggle inlay hints (on by default in Rust only) |
 | `<leader>uf` / `uF` | toggle format-on-save global / buffer |
 | `]d` / `[d` / `]e` / `[e` | next/prev diagnostic, next/prev error |
 | `]h` / `[h` | next / previous git hunk |

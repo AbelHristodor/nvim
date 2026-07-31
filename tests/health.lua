@@ -419,6 +419,28 @@ end
 
 check('LspAttach augroup', count_autocmds 'config-lsp-attach' > 0)
 
+-- Rust inlay hints on by default. Two separate assertions because two separate
+-- layers are involved, and each fails silently on its own:
+--   1. the server must be asked to compute hints (vim.g.rustaceanvim settings);
+--   2. Neovim's renderer must be switched on per buffer, since
+--      vim.lsp.inlay_hint defaults to disabled -- (1) alone displays nothing.
+-- Asserted statically: rustaceanvim only starts on a real Rust buffer, which a
+-- headless run has none of.
+local ra = vim.g.rustaceanvim or {}
+local ra_hints = vim.tbl_get(ra, 'server', 'default_settings', 'rust-analyzer', 'inlayHints') or {}
+check('rust-analyzer computes parameter hints', vim.tbl_get(ra_hints, 'parameterHints', 'enable') == true)
+check('rust on_attach enables the inlay hint renderer', type(vim.tbl_get(ra, 'server', 'on_attach')) == 'function', 'hints are computed but never displayed')
+
+-- Must be enabled PER BUFFER, not globally: a global enable would also turn
+-- hints on for Python, Go and TypeScript, where vtsls deliberately keeps
+-- variableTypes off.
+local rust_src = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/rust.lua', 'r')
+if rust_src then
+  local src = rust_src:read 'a'
+  rust_src:close()
+  check('rust inlay hints scoped to the buffer', src:match 'inlay_hint%.enable%(true,%s*{%s*bufnr' ~= nil, 'a global enable would leak hints into every filetype')
+end
+
 -- Runtime interpreter switching. before_init resolves the interpreter once at
 -- server start, so a venv activated later cannot be picked up without this.
 check('VenvSelect command exists', vim.fn.exists ':VenvSelect' == 2, 'no way to fix a wrong interpreter without restarting')

@@ -20,6 +20,32 @@
 
 vim.g.rustaceanvim = {
   server = {
+    -- INLAY HINTS ON BY DEFAULT, IN RUST BUFFERS ONLY.
+    --
+    -- Two separate layers are involved and only one of them is the `inlayHints`
+    -- table below. That table tells rust-analyzer WHICH hints to compute;
+    -- Neovim's own renderer decides whether to DISPLAY them, and it defaults to
+    -- off (vim.lsp.inlay_hint's state starts `enabled = false`). Configuring the
+    -- server alone therefore shows nothing.
+    --
+    -- Enabled per buffer rather than globally: a global
+    -- `vim.lsp.inlay_hint.enable(true)` would also switch them on for Python, Go
+    -- and TypeScript, where the tuning here has not been done -- vtsls in
+    -- lua/plugins/lsp.lua deliberately keeps variableTypes off.
+    --
+    -- `<leader>uh` (registered by the LspAttach handler in lua/plugins/lsp.lua)
+    -- still toggles them; it reads the live state, so the first press now turns
+    -- hints off rather than on.
+    --
+    -- Requesting hints this early can return an empty set, because
+    -- rust-analyzer has not finished indexing when on_attach fires
+    -- (neovim/neovim#26511). No workaround is needed here: rustaceanvim's
+    -- `experimental/serverStatus` handler re-toggles hints for any buffer where
+    -- they are already enabled once the server reports ready
+    -- (server_status.lua), which is exactly this case.
+    ---@param bufnr integer
+    on_attach = function(_, bufnr) vim.lsp.inlay_hint.enable(true, { bufnr = bufnr }) end,
+
     default_settings = {
       ['rust-analyzer'] = {
         cargo = { allFeatures = true, buildScripts = { enable = true } },
