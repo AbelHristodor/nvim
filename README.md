@@ -101,6 +101,15 @@ key-for-key** (taken from its own fzf-lua extra) so muscle memory transfers.
 | `<leader>ud` | toggle diagnostic virtual_lines |
 | `<leader>uh` | toggle inlay hints (on by default in Rust only) |
 | `<leader>uf` / `uF` | toggle format-on-save global / buffer |
+| `<leader>n` / `<leader>un` | notification history / dismiss |
+| `<leader>sr` | project-wide search and replace (grug-far) |
+| `<leader>qs` / `qS` / `ql` / `qd` | restore / select / restore-last / stop session |
+| `am` / `im`, `ac` / `ic` | function / class textobject (treesitter) |
+| `]m` / `[m`, `]c` / `[c` | next / prev function, next / prev class |
+| `]a` / `[a` | swap parameter forward / back |
+| `]t` / `[t` | next / previous todo comment |
+| `]q` / `[q` | next / previous quickfix item |
+| `]b` / `[b` | next / previous buffer |
 | `]d` / `[d` / `]e` / `[e` | next/prev diagnostic, next/prev error |
 | `]h` / `[h` | next / previous git hunk |
 | `<leader>xx` / `xX` / `xt` | diagnostics / buffer diagnostics / todo (Trouble) |
@@ -108,12 +117,15 @@ key-for-key** (taken from its own fzf-lua extra) so muscle memory transfers.
 | `<leader>d*` / `<leader>t*` | debug / test |
 | `<C-h/j/k/l>` | window navigation |
 
-Two deliberate departures from LazyVim:
+Three deliberate departures from LazyVim:
 
 * **`<leader>ud`** holds the diagnostic virtual_lines toggle. Neovim's docs put it
   on `gK`, but LazyVim uses `gK` for signature help and that binding wins.
 * **No `<leader>cc` / `cC`** (run/refresh codelens). Codelens is deliberately
   absent — see the performance notes above.
+* **Textobjects use `am`/`im` and `ac`/`ic`**, the treesitter-textobjects
+  upstream scheme, rather than LazyVim's `af`/`if`. `f` is already mini.ai's
+  function-*call* textobject, so the upstream keys keep both without a remap.
 
 ## Python interpreters
 
@@ -146,7 +158,9 @@ sorter (`telescope-fzf-native`, built by the `PackChanged` hook — without it t
 Lua sorter is slow on large repos). File tree is **nvim-tree** on `<leader>e`.
 Lists are **trouble.nvim**. Also: gitsigns, mini.ai/surround/icons, lualine,
 which-key, todo-comments, treesitter, blink.cmp, conform, nvim-lint,
-rustaceanvim, nvim-dap, neotest.
+rustaceanvim, nvim-dap, neotest. QoL layer: snacks.nvim (bigfile guard, fast
+first render, notifications, input), mini.pairs, mini.indentscope,
+nvim-treesitter-textobjects, lazydev, persistence and grug-far.
 
 Telescope's LSP pickers jump straight to a lone result rather than opening a
 menu, so `gd` stays a direct jump — `tests/health.lua` asserts the config never

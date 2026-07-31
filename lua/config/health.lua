@@ -125,6 +125,19 @@ local function check_single_lsp_owner()
   end
 end
 
+--- INVARIANT 4: exactly one plugin draws indent guides. mini.indentscope and
+--- snacks.indent both write extmarks to the same columns; running both flickers.
+local function check_single_indent_owner()
+  local snacks_indent = package.loaded.snacks and Snacks.config.indent and Snacks.config.indent.enabled
+  if snacks_indent and package.loaded['mini.indentscope'] then
+    vim.health.error 'mini.indentscope AND snacks.indent both active -- overlapping extmarks will flicker'
+  elseif snacks_indent then
+    vim.health.ok 'indent guides: snacks.indent'
+  else
+    vim.health.ok 'indent guides: mini.indentscope (single owner)'
+  end
+end
+
 function M.check()
   vim.health.start 'config: environment'
   check_neovim()
@@ -136,6 +149,7 @@ function M.check()
   check_excludes()
   check_lazy_loading()
   check_single_lsp_owner()
+  check_single_indent_owner()
 end
 
 return M

@@ -89,9 +89,52 @@ vim.api.nvim_create_autocmd({ 'BufReadPost', 'BufNewFile' }, {
     -- Add/delete/replace surroundings: saiw) sd' sr)'
     require('mini.surround').setup()
 
+    -- Autopairing. Free here: mini.nvim is already loaded, so this is one
+    -- setup() call rather than a new plugin.
+    --
+    -- ON <CR>, which the usual advice gets wrong for this config. blink.cmp's
+    -- `default` preset does NOT map <CR> -- it accepts on <C-y>, mirroring
+    -- built-in ins-completion (see lua/plugins/completion.lua). Probed live:
+    -- with blink loaded, maparg('<CR>', 'i') is empty and mini.pairs then
+    -- installs v:lua.MiniPairs.cr(). mini.pairs also guards this itself, only
+    -- mapping <CR> when maparg is empty (its pairs.lua:557), so it yields to any
+    -- future binding. Keeping it is what puts the cursor on a properly indented
+    -- blank line when you press Enter between { and }.
+    require('mini.pairs').setup {
+      -- Command mode included so pairs work on the `:` line. Terminal excluded
+      -- so they never interfere with a shell or lazygit.
+      modes = { insert = true, command = true, terminal = false },
+    }
+
+    -- Indent guides. Owns them exclusively -- snacks.indent stays off, because
+    -- two plugins drawing extmarks in the same columns flickers.
+    require('mini.indentscope').setup {
+      -- Default is an animated draw; instant keeps it from competing with
+      -- cursor movement on large files.
+      draw = { delay = 50, animation = require('mini.indentscope').gen_animation.none() },
+      symbol = '│',
+      options = { try_as_border = true },
+    }
+
     vim.cmd.packadd 'todo-comments.nvim'
     require('todo-comments').setup { signs = false }
   end,
+})
+
+-- Indent guides are noise in throwaway and UI buffers. mini.indentscope reads
+-- this buffer-local variable on each draw.
+vim.api.nvim_create_autocmd('FileType', {
+  desc = 'Disable indent guides in scratch and UI buffers',
+  group = deferred,
+  pattern = { 'help', 'man', 'qf', 'lspinfo', 'checkhealth', 'trouble', 'NvimTree', 'gitcommit', 'markdown', 'snacks_notif', 'snacks_terminal' },
+  callback = function(ev) vim.b[ev.buf].miniindentscope_disable = true end,
+})
+
+-- Terminal buffers have no meaningful indent structure.
+vim.api.nvim_create_autocmd('TermOpen', {
+  desc = 'Disable indent guides in terminals',
+  group = deferred,
+  callback = function(ev) vim.b[ev.buf].miniindentscope_disable = true end,
 })
 
 -- which-key only matters once a mapping prefix is actually typed. Loading it on
@@ -112,6 +155,7 @@ vim.api.nvim_create_autocmd('SafeState', {
         { '<leader>d', group = 'Debug' },
         { '<leader>f', group = 'Find/File' },
         { '<leader>g', group = 'Git' },
+        { '<leader>q', group = 'Session/Quit' },
         { '<leader>s', group = 'Search' },
         { '<leader>t', group = 'Test' },
         { '<leader>u', group = 'UI/Toggle' },

@@ -56,3 +56,32 @@ map('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 -- Quickfix / location list.
 map('n', '<leader>xq', '<cmd>copen<CR>', { desc = 'Quickfix list' })
 map('n', '<leader>xl', '<cmd>lopen<CR>', { desc = 'Location list' })
+
+-- Bracket navigation, completing the ]d / ]e / ]h set defined elsewhere
+-- (diagnostics in lua/config/diagnostics.lua, git hunks in lua/plugins/git.lua).
+
+-- Todo comments. todo-comments is deferred behind the first real buffer
+-- (lua/plugins/ui.lua), so load it before jumping; both functions are exported
+-- from its init.lua.
+map('n', ']t', function()
+  pcall(vim.cmd.packadd, 'todo-comments.nvim')
+  require('todo-comments').jump_next()
+end, { desc = 'Next todo comment' })
+map('n', '[t', function()
+  pcall(vim.cmd.packadd, 'todo-comments.nvim')
+  require('todo-comments').jump_prev()
+end, { desc = 'Previous todo comment' })
+
+-- Quickfix. pcall so the end of the list reports instead of throwing E553.
+map('n', ']q', function()
+  local ok, err = pcall(vim.cmd.cnext)
+  if not ok then vim.notify(tostring(err):match '[^\n]*$' or 'No more quickfix items', vim.log.levels.WARN) end
+end, { desc = 'Next quickfix item' })
+map('n', '[q', function()
+  local ok, err = pcall(vim.cmd.cprevious)
+  if not ok then vim.notify(tostring(err):match '[^\n]*$' or 'No previous quickfix items', vim.log.levels.WARN) end
+end, { desc = 'Previous quickfix item' })
+
+-- Buffers, complementing <S-h> / <S-l> above.
+map('n', ']b', '<cmd>bnext<CR>', { desc = 'Next buffer' })
+map('n', '[b', '<cmd>bprevious<CR>', { desc = 'Previous buffer' })

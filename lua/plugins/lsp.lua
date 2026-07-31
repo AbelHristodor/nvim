@@ -438,6 +438,40 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
+-- lazydev.nvim: on-demand Neovim API types for Lua.
+--
+-- Worth having specifically because this repo IS a Neovim config. The lua_ls
+-- on_init above already registers workspace libraries; lazydev is complementary
+-- -- it resolves types per `require` as you type, rather than scanning the whole
+-- runtime up front.
+--
+-- DEFERRED to the first Lua buffer. Not `load = false`: as documented in
+-- lua/plugins/completion.lua, that still lands the plugin on runtimepath and
+-- lets Neovim source its plugin/ files during the same startup.
+--
+-- Ordering is not a concern. lazydev pushes workspace/didChangeConfiguration to
+-- clients that are already running (its lsp.lua:92), so it works whether it
+-- loads before or after lua_ls starts.
+local lazydev_ready = false
+
+vim.api.nvim_create_autocmd('FileType', {
+  desc = 'Load lazydev on the first Lua buffer',
+  group = vim.api.nvim_create_augroup('config-lazydev', { clear = true }),
+  pattern = 'lua',
+  callback = function()
+    if lazydev_ready then return end
+    lazydev_ready = true
+
+    vim.pack.add { gh 'folke/lazydev.nvim' }
+    require('lazydev').setup {
+      library = {
+        -- Types for vim.uv, which is a C module lua_ls cannot introspect.
+        { path = '${3rd}/luv/library', words = { 'vim%.uv' } },
+      },
+    }
+  end,
+})
+
 -- Single owner of enablement. rust_analyzer is intentionally not in `servers`.
 for name, cfg in pairs(servers) do
   vim.lsp.config(name, cfg)

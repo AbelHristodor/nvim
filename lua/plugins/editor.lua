@@ -70,3 +70,60 @@ require('snacks').setup {
 
 vim.keymap.set('n', '<leader>n', function() require('snacks').notifier.show_history() end, { desc = 'Notification history' })
 vim.keymap.set('n', '<leader>un', function() require('snacks').notifier.hide() end, { desc = 'Dismiss notifications' })
+
+-- persistence.nvim: session management.
+--
+-- Chosen over mini.sessions (which is already on disk) because it matches
+-- LazyVim's <leader>q* keymaps, preserving the muscle memory this config mirrors
+-- everywhere else, and because it autosaves on VimLeavePre rather than needing a
+-- manual save.
+--
+-- DEFERRED to the first <leader>q press, for the reason in
+-- lua/plugins/completion.lua.
+--
+-- KNOWN TRADE-OFF: persistence.setup() calls start() internally, which is what
+-- registers the VimLeavePre autosave. Because setup runs lazily, a session is
+-- only written if you touched a session keymap during that Neovim run. Making
+-- autosave unconditional would mean loading it eagerly; that is the cost this
+-- config is not willing to pay for a feature used at session boundaries.
+local persistence_specs = { gh 'folke/persistence.nvim' }
+local persistence_ready = false
+
+local function setup_persistence()
+  if persistence_ready then return end
+  persistence_ready = true
+
+  vim.pack.add(persistence_specs)
+  require('persistence').setup {}
+end
+
+---Wraps a persistence action so the first invocation loads the plugin.
+---@param fn fun(p: table)
+---@return fun()
+local function lazy_session(fn)
+  return function()
+    setup_persistence()
+    fn(require 'persistence')
+  end
+end
+
+vim.keymap.set('n', '<leader>qs', lazy_session(function(p) p.load() end), { desc = 'Restore session' })
+vim.keymap.set('n', '<leader>qS', lazy_session(function(p) p.select() end), { desc = 'Select session' })
+vim.keymap.set('n', '<leader>ql', lazy_session(function(p) p.load { last = true } end), { desc = 'Restore last session' })
+vim.keymap.set('n', '<leader>qd', lazy_session(function(p) p.stop() end), { desc = "Don't save current session" })
+
+-- grug-far.nvim: project-wide find and replace.
+--
+-- Telescope covers grep but has no multi-file replace. <leader>sr matches
+-- LazyVim. Deferred to first use, as everywhere else in this config.
+local grug_specs = { gh 'MagicDuck/grug-far.nvim' }
+local grug_ready = false
+
+vim.keymap.set('n', '<leader>sr', function()
+  if not grug_ready then
+    grug_ready = true
+    vim.pack.add(grug_specs)
+    require('grug-far').setup { headerMaxWidth = 80 }
+  end
+  require('grug-far').open()
+end, { desc = 'Search and Replace' })

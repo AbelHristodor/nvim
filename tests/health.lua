@@ -484,6 +484,75 @@ if snacks_ok then
   check('notifier took over vim.notify', vim.notify == require('snacks.notifier').notify)
 end
 
+-- mini.pairs and mini.indentscope are set up on the first real buffer
+-- (lua/plugins/ui.lua), which the headless suite has none of -- so assert the
+-- source wires them, not live state.
+local ui_src = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/ui.lua', 'r')
+if ui_src then
+  local src = ui_src:read 'a'
+  ui_src:close()
+  check('mini.pairs set up on first buffer', src:match "require%('mini%.pairs'%)%.setup" ~= nil)
+  -- Command mode on, terminal off: pairs on the `:` line are useful, pairs in a
+  -- shell or lazygit terminal are not.
+  check('mini.pairs command mode on, terminal off', src:match 'command = true' ~= nil and src:match 'terminal = false' ~= nil)
+  check('mini.indentscope set up on first buffer', src:match "require%('mini%.indentscope'%)%.setup" ~= nil)
+  -- Guides in a help/terminal/tree buffer are noise, not signal.
+  check('mini.indentscope disabled in scratch filetypes', src:match 'miniindentscope_disable' ~= nil)
+end
+
+-- Function/class textobjects. nvim-treesitter's main branch ships no
+-- textobjects.scm (verified: 0 files); the companion repo carries its own
+-- queries -- confirmed present for rust (15 fn/class captures), python, lua, go
+-- and typescript.
+loads 'nvim-treesitter-textobjects'
+
+-- Neovim's own ftplugin/python.vim maps ]m and [m buffer-locally in n/o/x modes
+-- (its lines 64-83), which would shadow these globals in the most-used language
+-- here. Opt out per filetype rather than with the README's global
+-- no_plugin_maps, which would disable ftplugin maps across all 29 filetypes.
+check('python ftplugin maps disabled (]m would be shadowed)', vim.g.no_python_maps == true)
+check('ruby ftplugin maps disabled', vim.g.no_ruby_maps == true)
+
+-- Upstream key scheme: am/im for functions (m = method), ac/ic for classes.
+-- Leaves mini.ai's `f` (function-call) untouched, so no remap is needed.
+for _, lhs in ipairs { 'am', 'im', 'ac', 'ic' } do
+  local found = false
+  for _, m in ipairs(vim.api.nvim_get_keymap 'o') do
+    if m.lhs == lhs then found = true end
+  end
+  check('operator-pending textobject ' .. lhs, found)
+end
+for _, lhs in ipairs { ']m', '[m', ']c', '[c' } do
+  check('movement ' .. lhs, has_nmap(lhs))
+end
+
+-- lazydev: on-demand vim.* types when editing this config. Gated to
+-- FileType lua, so it is NOT loaded in a headless run with no Lua buffer --
+-- assert the source wires it rather than that it is loaded.
+local lsp_src2 = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/lsp.lua', 'r')
+if lsp_src2 then
+  local src2 = lsp_src2:read 'a'
+  lsp_src2:close()
+  check('lazydev registered', src2:match 'lazydev' ~= nil)
+  check('lazydev gated to lua filetype', src2:match "pattern = 'lua'" ~= nil, 'must not load for every filetype')
+end
+
+-- Sessions. Deferred to the first <leader>q press, so assert the keymaps exist
+-- rather than that the plugin is loaded.
+for _, lhs in ipairs { '<leader>qs', '<leader>qS', '<leader>ql', '<leader>qd' } do
+  check('session keymap ' .. lhs, has_nmap(lhs))
+end
+check('persistence NOT loaded at startup', package.loaded.persistence == nil, 'must stay deferred')
+
+-- Project-wide replace. Telescope can grep but not replace across files.
+check('search-and-replace keymap <leader>sr', has_nmap '<leader>sr')
+check('grug-far NOT loaded at startup', package.loaded['grug-far'] == nil, 'must stay deferred')
+
+-- Bracket navigation, filling the gaps in the existing ]d / ]e / ]h set.
+for _, lhs in ipairs { ']t', '[t', ']q', '[q', ']b', '[b' } do
+  check('bracket keymap ' .. lhs, has_nmap(lhs))
+end
+
 print '== completion and formatting =='
 loads 'conform'
 loads 'lint'
