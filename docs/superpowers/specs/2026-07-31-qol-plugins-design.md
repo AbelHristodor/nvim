@@ -67,10 +67,21 @@ nvim-tree, dashboard, checkhealth, lazygit, gitcommit).
 The largest genuine gap found: #16 most-installed (1197 configs) and this config
 has no autopairing at all. Already on disk.
 
-**`<CR>` must stay unmapped.** blink.cmp binds `<CR>`; mini.pairs' default
-`<CR>` mapping would fight it and produce double newlines inside brackets. Set
-`modes = { insert = true, command = true, terminal = false }` and drop `<CR>`
-from `mappings`.
+**`<CR>` is safe to leave to mini.pairs, contrary to the usual warning.**
+Verified empirically rather than assumed. blink.cmp's `default` preset does
+*not* map `<CR>` — it accepts on `<C-y>`, mirroring built-in ins-completion
+(consistent with the comment in `completion.lua`). Probed live: with blink
+loaded, `maparg('<CR>', 'i')` is empty, and mini.pairs then installs
+`v:lua.MiniPairs.cr()`. mini.pairs also guards this itself — it only maps `<CR>`
+when `maparg('<CR>', mode) == ''` (its `pairs.lua:557`), so it yields to any
+future binding.
+
+Keeping it is desirable: `MiniPairs.cr()` is what puts the cursor on a properly
+indented blank line when you press Enter between `{` and `}`.
+
+Set `modes = { insert = true, command = true, terminal = false }` — command mode
+added so pairs work on the `:` line; terminal left off so they never interfere
+with a shell or lazygit.
 
 Borrows LazyVim's tuning: skip pairing before an alphanumeric/quote character,
 skip inside treesitter `string` nodes, detect unbalanced pairs, and
@@ -182,7 +193,8 @@ verification applied to the Rust inlay hints change, which caught that a
 
 Specific invariants worth asserting:
 
-- `mini.pairs` does not map `<CR>` (the blink.cmp conflict)
+- `mini.pairs` owns `<CR>` in insert mode, and blink still accepts on `<C-y>`
+  (guards the interaction documented in §3 against a future blink preset change)
 - indent guides have exactly one owner (mini.indentscope on, snacks.indent off)
 - `vim.g.no_python_maps` is set (otherwise `]m` silently does the wrong thing
   in Python)
