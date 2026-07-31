@@ -65,6 +65,7 @@ require 'config.diagnostics'
 require 'config.project'
 
 require 'plugins.ui'
+require 'plugins.editor'
 require 'plugins.treesitter'
 require 'plugins.picker' -- must precede lsp: LspAttach keymaps require telescope
 require 'plugins.lsp'

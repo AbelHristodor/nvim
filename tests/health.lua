@@ -453,6 +453,33 @@ for _, offender in ipairs { 'lensline', 'lsp_lines', 'nvim-lightbulb' } do
   check('no ' .. offender, package.loaded[offender] == nil, 'reference-counting codelens reintroduces the latency')
 end
 
+print '== editor QoL =='
+loads 'snacks'
+
+-- NOTE on reading snacks.config: its config table has an __index metatable that
+-- auto-creates an empty table for any key touched (its init.lua:50-54), so
+-- `snacks.config.picker` is NEVER nil. Verified. Assert on `.enabled` only --
+-- testing the table for nil would always pass and prove nothing.
+local snacks_ok, snacks = pcall(require, 'snacks')
+if snacks_ok then
+  for _, m in ipairs { 'bigfile', 'quickfile', 'notifier', 'input' } do
+    check('snacks.' .. m .. ' enabled', snacks.config[m].enabled == true)
+  end
+  for _, m in ipairs { 'picker', 'explorer', 'dashboard', 'scroll', 'words', 'statuscolumn' } do
+    check('snacks.' .. m .. ' NOT enabled', snacks.config[m].enabled ~= true, 'duplicates existing plugins or adds per-keystroke work')
+  end
+  -- Indent guides must have exactly one owner; mini.indentscope owns them
+  -- (Task 3). Both drawing at once produces overlapping extmarks and flicker.
+  check('snacks.indent NOT enabled (mini.indentscope owns guides)', snacks.config.indent.enabled ~= true)
+
+  -- vim.notify must be REPLACED. Comparing directly against notifier.notify
+  -- fails on a fresh session: snacks installs a one-shot trampoline that only
+  -- swaps itself out on the first call (its init.lua:219-223). Verified both
+  -- ways. So fire one notification first, then compare.
+  vim.notify('health check', vim.log.levels.INFO)
+  check('notifier took over vim.notify', vim.notify == require('snacks.notifier').notify)
+end
+
 print '== completion and formatting =='
 loads 'conform'
 loads 'lint'
