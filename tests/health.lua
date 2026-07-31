@@ -438,7 +438,11 @@ local rust_src = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/rust.lua', 'r'
 if rust_src then
   local src = rust_src:read 'a'
   rust_src:close()
-  check('rust inlay hints scoped to the buffer', src:match 'inlay_hint%.enable%(true,%s*{%s*bufnr' ~= nil, 'a global enable would leak hints into every filetype')
+  check(
+    'rust inlay hints scoped to the buffer',
+    src:match 'inlay_hint%.enable%(true,%s*{%s*bufnr' ~= nil,
+    'a global enable would leak hints into every filetype'
+  )
 end
 
 -- Runtime interpreter switching. before_init resolves the interpreter once at

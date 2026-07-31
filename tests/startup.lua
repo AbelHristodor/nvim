@@ -50,6 +50,23 @@ for i = 1, RUNS do
   -- vim.v.progpath, not bare 'nvim', so this measures the same binary running
   -- the suite. clear_env = false keeps the inherited environment; a bare `env`
   -- table would drop XDG_* and TERM and change what gets loaded.
+  --
+  -- KNOWN BLIND SPOT, and it is structural: --headless attaches no UI, so UIEnter
+  -- NEVER FIRES. Any plugin whose work is keyed to UIEnter is therefore invisible
+  -- to this gate, and its cost is silently excluded from the number below.
+  --
+  -- Live example: snacks.nvim keys its submodules by event, and `input` -- which
+  -- lua/plugins/editor.lua enables -- is in its UIEnter group (snacks
+  -- init.lua:161). Headless, `package.loaded` shows one snacks module; with a real
+  -- UI it shows three (snacks, snacks.util, snacks.input), the extra two costing
+  -- ~1.7 ms that this gate does not see.
+  --
+  -- So the median printed below is real but INCOMPLETE -- a lower bound. The trap:
+  -- enabling another UIEnter-group module (picker, scope, scroll, dashboard) would
+  -- slow real startup while this gate reports no regression at all. If you touch
+  -- that group, measure separately with a child `nvim --embed` and NO --headless
+  -- (it blocks startup until nvim_ui_attach, reproducing the real ordering); see
+  -- the measurement note in lua/plugins/editor.lua.
   local result = vim
     .system({ vim.v.progpath, '--headless', '--startuptime', log, '-c', 'qa' }, {
       clear_env = false,
