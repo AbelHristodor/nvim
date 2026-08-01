@@ -408,29 +408,12 @@ vim.api.nvim_create_autocmd('LspAttach', {
 
     local client = vim.lsp.get_client_by_id(event.data.client_id)
 
-    -- Highlight other references to the symbol under the cursor. This uses
-    -- textDocument/documentHighlight, which is buffer-local and cheap --
-    -- unlike textDocument/references, which is workspace-wide.
-    if client and client:supports_method('textDocument/documentHighlight', buf) then
-      local hl_group = vim.api.nvim_create_augroup('config-lsp-highlight', { clear = false })
-      vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-        buffer = buf,
-        group = hl_group,
-        callback = vim.lsp.buf.document_highlight,
-      })
-      vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-        buffer = buf,
-        group = hl_group,
-        callback = vim.lsp.buf.clear_references,
-      })
-      vim.api.nvim_create_autocmd('LspDetach', {
-        group = vim.api.nvim_create_augroup('config-lsp-detach', { clear = true }),
-        callback = function(ev2)
-          vim.lsp.buf.clear_references()
-          vim.api.nvim_clear_autocmds { group = 'config-lsp-highlight', buffer = ev2.buf }
-        end,
-      })
-    end
+    -- Highlighting other references to the symbol under the cursor
+    -- (textDocument/documentHighlight) is owned by snacks.words, set up in
+    -- lua/plugins/editor.lua. It loads on this same LspAttach event and registers
+    -- its own CursorMoved/ModeChanged handlers plus ]] / [[ navigation, so there
+    -- is deliberately no documentHighlight autocmd here -- running both would
+    -- draw the reference extmarks twice.
 
     if client and client:supports_method('textDocument/inlayHint', buf) then
       map('<leader>uh', function() vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = buf }, { bufnr = buf }) end, 'Toggle inlay hints')

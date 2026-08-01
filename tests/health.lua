@@ -466,10 +466,13 @@ loads 'snacks'
 -- testing the table for nil would always pass and prove nothing.
 local snacks_ok, snacks = pcall(require, 'snacks')
 if snacks_ok then
-  for _, m in ipairs { 'bigfile', 'quickfile', 'notifier', 'input' } do
+  -- words and gitbrowse are enabled but defer their cost: gitbrowse is required
+  -- on keymap, words loads on LspAttach. The .enabled flag is still set at
+  -- setup() time, so it reads true even headlessly where neither has attached.
+  for _, m in ipairs { 'bigfile', 'quickfile', 'notifier', 'input', 'words', 'gitbrowse' } do
     check('snacks.' .. m .. ' enabled', snacks.config[m].enabled == true)
   end
-  for _, m in ipairs { 'picker', 'explorer', 'dashboard', 'scroll', 'words', 'statuscolumn' } do
+  for _, m in ipairs { 'picker', 'explorer', 'dashboard', 'scroll', 'statuscolumn' } do
     check('snacks.' .. m .. ' NOT enabled', snacks.config[m].enabled ~= true, 'duplicates existing plugins or adds per-keystroke work')
   end
   -- Indent guides must have exactly one owner; mini.indentscope owns them
@@ -552,6 +555,18 @@ check('grug-far NOT loaded at startup', package.loaded['grug-far'] == nil, 'must
 for _, lhs in ipairs { ']t', '[t', ']q', '[q', ']b', '[b' } do
   check('bracket keymap ' .. lhs, has_nmap(lhs))
 end
+
+-- Harpoon: pinned-file shortlist with a telescope UI. Deferred to first
+-- <leader>h press; the numbered-slot maps prove the keymaps exist without
+-- loading it.
+for _, lhs in ipairs { '<leader>ha', '<leader>hh', '<leader>h1' } do
+  check('harpoon keymap ' .. lhs, has_nmap(lhs))
+end
+check('harpoon NOT loaded at startup', package.loaded.harpoon == nil, 'must stay deferred')
+
+-- diffview: side-by-side diffs and file history. Deferred to first <leader>gd.
+check('diffview keymap <leader>gd', has_nmap '<leader>gd')
+check('diffview NOT loaded at startup', package.loaded['diffview'] == nil, 'must stay deferred')
 
 print '== completion and formatting =='
 loads 'conform'

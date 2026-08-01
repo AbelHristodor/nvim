@@ -41,11 +41,14 @@
 -- consistent with the summed self-times above (~1.5 ms for this file, ~0.2 ms to
 -- source snacks' plugin/, ~1.7 ms for util+input).
 --
--- Scope is deliberately four modules. Rejected: picker and explorer (duplicate
--- telescope and nvim-tree), statuscolumn and dashboard (cosmetic), scroll and
--- words (per-motion and per-CursorHold work; `words` duplicates the
--- documentHighlight autocmd in lua/plugins/lsp.lua), and indent (mini.indentscope
--- owns guides -- enabling both draws overlapping extmarks and flickers).
+-- Scope is deliberately six modules. Rejected: picker and explorer (duplicate
+-- telescope and nvim-tree), statuscolumn and dashboard (cosmetic), scroll
+-- (per-motion work), and scope/indent (mini.indentscope owns guides -- enabling
+-- both draws overlapping extmarks and flickers).
+--
+-- Both extra modules defer their cost: `gitbrowse` is required only when its
+-- keymap fires, and `words` loads on LspAttach (its events table keys it there),
+-- so neither touches the startup path.
 vim.pack.add { gh 'folke/snacks.nvim' }
 
 require('snacks').setup {
@@ -66,10 +69,30 @@ require('snacks').setup {
   -- Replaces vim.ui.input. No conflict with the telescope ui-select extension
   -- in lua/plugins/picker.lua: vim.ui.input and vim.ui.select are separate hooks.
   input = { enabled = true },
+
+  -- Auto-highlights other references to the symbol under the cursor and gives
+  -- ]] / [[ to jump between them. REPLACES the manual documentHighlight autocmd
+  -- that used to live in lua/plugins/lsp.lua: this module registers its own
+  -- CursorMoved/ModeChanged highlight handlers on LspAttach, so running both
+  -- would double-highlight. Debounced 200ms, same as the old autocmd's implicit
+  -- CursorHold delay.
+  words = { enabled = true },
+
+  -- Opens the current line (or visual range) on the git remote's web UI.
+  -- <leader>gB below.
+  gitbrowse = { enabled = true },
 }
 
 vim.keymap.set('n', '<leader>n', function() require('snacks').notifier.show_history() end, { desc = 'Notification history' })
 vim.keymap.set('n', '<leader>un', function() require('snacks').notifier.hide() end, { desc = 'Dismiss notifications' })
+
+-- Open current line / selection on the git remote (GitHub, etc.).
+vim.keymap.set({ 'n', 'x' }, '<leader>gB', function() require('snacks').gitbrowse() end, { desc = 'Git Browse (open)' })
+
+-- Navigate LSP references to the symbol under the cursor. These override the
+-- default ]] / [[ section motions, matching the LazyVim convention.
+vim.keymap.set({ 'n', 't' }, ']]', function() require('snacks').words.jump(vim.v.count1) end, { desc = 'Next reference' })
+vim.keymap.set({ 'n', 't' }, '[[', function() require('snacks').words.jump(-vim.v.count1) end, { desc = 'Prev reference' })
 
 -- persistence.nvim: session management.
 --

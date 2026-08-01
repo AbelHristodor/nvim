@@ -155,6 +155,7 @@ vim.api.nvim_create_autocmd('SafeState', {
         { '<leader>d', group = 'Debug' },
         { '<leader>f', group = 'Find/File' },
         { '<leader>g', group = 'Git' },
+        { '<leader>h', group = 'Harpoon' },
         { '<leader>q', group = 'Session/Quit' },
         { '<leader>s', group = 'Search' },
         { '<leader>t', group = 'Test' },

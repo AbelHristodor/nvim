@@ -28,6 +28,40 @@ require('gitsigns').setup {
   end,
 }
 
+-- diffview.nvim: side-by-side diffs, file history and 3-way merge resolution.
+--
+-- The one real git gap left by gitsigns (inline hunks) + lazygit (staging):
+-- neither gives a proper diff view, a browsable file history, or a merge-conflict
+-- editor. :DiffviewOpen diffs the working tree; :DiffviewFileHistory walks a
+-- file's (or the repo's) commits.
+--
+-- DEFERRED to first use, as everywhere else in this config -- the spec is only
+-- handed to vim.pack.add on the first keymap press.
+local diffview_specs = {
+  gh 'sindrets/diffview.nvim',
+  gh 'nvim-lua/plenary.nvim', -- already on disk above; listed for correctness
+}
+local diffview_ready = false
+
+---Loads diffview on first use, then runs a Diffview command.
+---@param cmd string
+---@return fun()
+local function diffview(cmd)
+  return function()
+    if not diffview_ready then
+      diffview_ready = true
+      vim.pack.add(diffview_specs)
+      require('diffview').setup {}
+    end
+    vim.cmd(cmd)
+  end
+end
+
+vim.keymap.set('n', '<leader>gd', diffview 'DiffviewOpen', { desc = 'Diff View (open)' })
+vim.keymap.set('n', '<leader>gD', diffview 'DiffviewClose', { desc = 'Diff View (close)' })
+vim.keymap.set('n', '<leader>gf', diffview 'DiffviewFileHistory %', { desc = 'File History (current file)' })
+vim.keymap.set('n', '<leader>gF', diffview 'DiffviewFileHistory', { desc = 'File History (repo)' })
+
 -- lazygit in a floating terminal. The binary is already installed.
 vim.keymap.set('n', '<leader>gg', function()
   if vim.fn.executable 'lazygit' ~= 1 then

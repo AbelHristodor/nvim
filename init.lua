@@ -73,6 +73,7 @@ require 'plugins.explorer'
 require 'plugins.completion'
 require 'plugins.format'
 require 'plugins.git'
+require 'plugins.harpoon' -- telescope UI; loads after plugins.picker
 require 'plugins.rust'
 require 'plugins.dap'
 require 'plugins.test'
