@@ -621,6 +621,50 @@ check('markdownlint config file exists', vim.uv.fs_stat(vim.fn.stdpath 'config' 
 local lint_ok, lint_mod = pcall(require, 'lint')
 if lint_ok then check('markdown linter registered', lint_mod.linters_by_ft.markdown ~= nil) end
 
+print '== cloudformation =='
+local ok_cfn, cfn = pcall(require, 'config.cloudformation')
+check('config.cloudformation loads', ok_cfn, tostring(cfn))
+if ok_cfn then
+  check('cloudformation.intrinsic_tags is a non-empty list', type(cfn.intrinsic_tags) == 'table' and #cfn.intrinsic_tags > 0, tostring(cfn.intrinsic_tags))
+  check('cloudformation.schema_url is a string', type(cfn.schema_url) == 'string' and cfn.schema_url:match '^https?://' ~= nil, tostring(cfn.schema_url))
+  check('cloudformation.is_template is a function', type(cfn.is_template) == 'function')
+
+  -- intrinsic_tags must cover the tags yaml-language-server would otherwise
+  -- reject. A representative sample (both scalar and sequence forms exist for
+  -- some, e.g. !Sub); assert the tag names appear somewhere in the list.
+  local tag_blob = table.concat(cfn.intrinsic_tags, ' ')
+  for _, tag in ipairs { '!Ref', '!GetAtt', '!Sub', '!If', '!Join', '!Select', '!FindInMap', '!ImportValue', '!Equals', '!And', '!Or', '!Not', '!Base64' } do
+    check('customTag covers ' .. tag, tag_blob:find(tag, 1, true) ~= nil, 'missing from intrinsic_tags')
+  end
+
+  if type(cfn.is_template) == 'function' then
+    -- YAML with AWSTemplateFormatVersion -> template.
+    local b1 = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b1, 0, -1, false, { 'AWSTemplateFormatVersion: "2010-09-09"', 'Resources:', '  B:', '    Type: AWS::S3::Bucket' })
+    check('is_template true for AWSTemplateFormatVersion', cfn.is_template(b1) == true)
+    vim.api.nvim_buf_delete(b1, { force = true })
+
+    -- YAML with only a top-level Resources: key -> template.
+    local b2 = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b2, 0, -1, false, { '# a stack', 'Resources:', '  Q:', '    Type: AWS::SQS::Queue' })
+    check('is_template true for top-level Resources:', cfn.is_template(b2) == true)
+    vim.api.nvim_buf_delete(b2, { force = true })
+
+    -- Ordinary YAML (a CI workflow) -> NOT a template. `jobs:` and a nested
+    -- `resources:` under it must not trigger; only a TOP-LEVEL Resources: does.
+    local b3 = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b3, 0, -1, false, { 'name: CI', 'on: push', 'jobs:', '  build:', '    resources:', '      cpu: 2' })
+    check('is_template false for ordinary YAML workflow', cfn.is_template(b3) == false)
+    vim.api.nvim_buf_delete(b3, { force = true })
+
+    -- JSON template.
+    local b4 = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b4, 0, -1, false, { '{', '  "AWSTemplateFormatVersion": "2010-09-09",', '  "Resources": {}', '}' })
+    check('is_template true for JSON template', cfn.is_template(b4) == true)
+    vim.api.nvim_buf_delete(b4, { force = true })
+  end
+end
+
 if #failures > 0 then
   print(('\n%d failure(s): %s'):format(#failures, table.concat(failures, ', ')))
 else
