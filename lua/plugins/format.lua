@@ -55,8 +55,8 @@ require('conform').setup {
 --   * shellcheck -- bash-language-server invokes it natively
 --   * eslint     -- vtsls surfaces it when the project configures it
 --
--- markdownlint is the exception: it is CLI-only, so it needs nvim-lint to turn
--- its output into diagnostics.
+-- markdownlint and cfn-lint are the CLI-only linters: neither runs as a
+-- language server, so both need nvim-lint to turn their output into diagnostics.
 vim.pack.add { gh 'mfussenegger/nvim-lint' }
 
 local lint = require 'lint'

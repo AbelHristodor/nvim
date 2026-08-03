@@ -721,6 +721,17 @@ if ok_cfn then
     check('yamlls customTags include !GetAtt', blob:find('!GetAtt', 1, true) ~= nil)
   end
 
+  -- vim.lsp matches `filetypes` by EXACT string (no dot-splitting), so the
+  -- composite filetype MUST be listed or yamlls/jsonls never attach to a
+  -- template -- silently disabling customTags and the schema push. Regression
+  -- guard for that: assert the composite ft is present AND the base ft is kept.
+  local yfts = (server_cfg 'yamlls' or {}).filetypes or {}
+  check('yamlls filetypes include yaml.cloudformation', vim.tbl_contains(yfts, 'yaml.cloudformation'), vim.inspect(yfts))
+  check('yamlls filetypes still include base yaml', vim.tbl_contains(yfts, 'yaml'), vim.inspect(yfts))
+  local jfts = (server_cfg 'jsonls' or {}).filetypes or {}
+  check('jsonls filetypes include json.cloudformation', vim.tbl_contains(jfts, 'json.cloudformation'), vim.inspect(jfts))
+  check('jsonls filetypes still include base json', vim.tbl_contains(jfts, 'json'), vim.inspect(jfts))
+
   -- cfn-lint must be in the mason-tool-installer ensure_installed list. The list
   -- is inside a deferred function, so assert the SOURCE (same approach the
   -- harness uses for automatic_enable).
@@ -739,8 +750,16 @@ if ok_cfn then
     local src = cfn_lsp_src2:read 'a'
     cfn_lsp_src2:close()
     check('lsp.lua listens for CloudFormationDetected', src:match 'CloudFormationDetected' ~= nil, 'schema is never associated')
-    check('lsp.lua pushes schema via didChangeConfiguration', src:match 'workspace/didChangeConfiguration' ~= nil)
-    check('lsp.lua references the cfn schema_url', src:match 'cloudformation%.schema_url' ~= nil or src:match 'schema_url' ~= nil)
+    -- Must reference the qualified module field, not the bare word (which would
+    -- also match a comment). Anchors the schema push to the CFN block.
+    check('lsp.lua references cloudformation.schema_url', src:match 'cloudformation%.schema_url' ~= nil)
+    -- The schema is pushed by register_cfn_buffer; the User handler AND the
+    -- LspAttach catch-up (the primary path on first open) must both call it.
+    -- Deleting the LspAttach call would silently break schema association for
+    -- every freshly-opened template, so assert both call sites exist.
+    local _, push_calls = src:gsub('register_cfn_buffer%(', '')
+    check('lsp.lua calls register_cfn_buffer from >=2 sites (User + LspAttach)', push_calls >= 2, ('found %d call site(s)'):format(push_calls))
+    check('register_cfn_buffer notifies didChangeConfiguration', src:match 'register_cfn_buffer.-didChangeConfiguration' ~= nil, 'schema push not wired inside the helper')
   end
 
   local ok_lint, lint_mod = pcall(require, 'lint')

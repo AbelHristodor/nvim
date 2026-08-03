@@ -85,8 +85,10 @@ function M.setup()
     pattern = { 'yaml', 'json', 'json5' },
     callback = function(args)
       local buf = args.buf
-      -- Guard against the re-trigger from setting filetype below, and against
-      -- acting on an already-composite filetype.
+      -- Skip a buffer already marked as a CFN template -- e.g. on a later manual
+      -- `:set filetype` or a re-entrant FileType event. Setting the filetype
+      -- below does NOT itself re-fire FileType (Neovim's non-nested autocmd
+      -- rule), so this is not guarding against a self-re-trigger.
       if vim.b[buf].cloudformation then return end
       if not M.is_template(buf) then return end
 

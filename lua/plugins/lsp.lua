@@ -204,13 +204,24 @@ local servers = {
   },
 
   bashls = {},
-  jsonls = {},
+  -- json.cloudformation is a composite filetype (see the yamlls note below);
+  -- vim.lsp needs the exact string or jsonls will not attach to JSON templates.
+  jsonls = {
+    filetypes = { 'json', 'jsonc', 'json.cloudformation' },
+  },
   -- yaml-language-server. customTags teaches it CFN's short-form intrinsic
   -- functions (!Ref, !GetAtt, !Sub, ...) so a template stops reporting every one
   -- as an unresolved tag. Harmless for ordinary YAML. The CFN *schema* is not set
   -- statically here -- detection is content-based, so lua/config/cloudformation
   -- marks templates and the schema is pushed per-buffer below.
   yamlls = {
+    -- vim.lsp matches a server's `filetypes` by EXACT string and does NOT
+    -- dot-split, unlike conform/nvim-lint. A CFN template's composite filetype
+    -- (yaml.cloudformation) is therefore not covered by the shipped `yaml`
+    -- entry, so without this yamlls never attaches to templates and the
+    -- customTags below (and the schema push) silently do nothing. Extend rather
+    -- than replace, to keep yamlls's docker-compose/gitlab/helm-values variants.
+    filetypes = { 'yaml', 'yaml.docker-compose', 'yaml.gitlab', 'yaml.helm-values', 'yaml.cloudformation' },
     settings = { yaml = { customTags = cloudformation.intrinsic_tags } },
   },
   taplo = {},
