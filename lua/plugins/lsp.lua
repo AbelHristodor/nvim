@@ -369,6 +369,75 @@ end, { desc = 'Show the Python interpreter the LSP is using' })
 
 vim.keymap.set('n', '<leader>cv', '<cmd>VenvSelect<CR>', { desc = 'Select Python venv' })
 
+-- CLOUDFORMATION SCHEMA ASSOCIATION.
+--
+-- Detection is content-based (lua/config/cloudformation), so the schema-to-file
+-- association is not known until a buffer is inspected -- a static filename glob
+-- in settings.yaml.schemas cannot express "this file, because of its contents".
+-- So the schema is pushed at runtime, per detected buffer, via
+-- workspace/didChangeConfiguration -- the same mechanism set_python_path uses
+-- above.
+--
+-- A yamlls/jsonls client is shared across every buffer under one root, so the
+-- matched paths accumulate and the whole list is re-pushed each time; setting
+-- the schemas entry directly (not tbl_deep_extend) avoids leaving stale list
+-- entries behind.
+local cfn_yaml_files, cfn_json_files = {}, {}
+
+---Associates the CFN schema with `buf` on its yamlls/jsonls client, if attached.
+---@param buf integer
+local function register_cfn_buffer(buf)
+  if not (vim.api.nvim_buf_is_valid(buf) and vim.b[buf].cloudformation) then return end
+  local name = vim.api.nvim_buf_get_name(buf)
+  if name == '' then return end
+  local ft = vim.bo[buf].filetype
+
+  if ft:find 'yaml' then
+    if not vim.tbl_contains(cfn_yaml_files, name) then cfn_yaml_files[#cfn_yaml_files + 1] = name end
+    for _, client in ipairs(vim.lsp.get_clients { name = 'yamlls', bufnr = buf }) do
+      client.settings = client.settings or {}
+      client.settings.yaml = client.settings.yaml or {}
+      client.settings.yaml.schemas = client.settings.yaml.schemas or {}
+      client.settings.yaml.schemas[cloudformation.schema_url] = cfn_yaml_files
+      client:notify('workspace/didChangeConfiguration', { settings = client.settings })
+    end
+  elseif ft:find 'json' then
+    if not vim.tbl_contains(cfn_json_files, name) then cfn_json_files[#cfn_json_files + 1] = name end
+    for _, client in ipairs(vim.lsp.get_clients { name = 'jsonls', bufnr = buf }) do
+      client.settings = client.settings or {}
+      client.settings.json = client.settings.json or {}
+      -- jsonls schemas is a LIST of { url, fileMatch } entries; find or create
+      -- ours and refresh its fileMatch.
+      local schemas = client.settings.json.schemas or {}
+      local entry
+      for _, s in ipairs(schemas) do
+        if s.url == cloudformation.schema_url then
+          entry = s
+          break
+        end
+      end
+      if not entry then
+        entry = { url = cloudformation.schema_url, fileMatch = {} }
+        schemas[#schemas + 1] = entry
+      end
+      entry.fileMatch = cfn_json_files
+      client.settings.json.schemas = schemas
+      client:notify('workspace/didChangeConfiguration', { settings = client.settings })
+    end
+  end
+end
+
+-- Detection (FileType) usually fires before the language server attaches, so the
+-- push cannot happen at detection time alone. Handle both orders:
+--   * client already running (e.g. opening a second template) -> push now;
+--   * client attaches later -> the LspAttach callback below re-pushes.
+vim.api.nvim_create_autocmd('User', {
+  desc = 'Associate the CFN schema when a template is detected',
+  pattern = 'CloudFormationDetected',
+  group = vim.api.nvim_create_augroup('config-cfn-schema', { clear = true }),
+  callback = function(ev) register_cfn_buffer(ev.data.buf) end,
+})
+
 -- Buffer-local LSP keymaps. LazyVim-style, to preserve muscle memory.
 --
 -- NOTE: no codelens anywhere. Reference-counting codelens was the primary
@@ -427,6 +496,10 @@ vim.api.nvim_create_autocmd('LspAttach', {
     if client and client:supports_method('textDocument/inlayHint', buf) then
       map('<leader>uh', function() vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = buf }, { bufnr = buf }) end, 'Toggle inlay hints')
     end
+
+    -- If this buffer was already marked a CFN template (detection runs on
+    -- FileType, before attach), associate the schema now that the client exists.
+    if vim.b[buf].cloudformation then register_cfn_buffer(buf) end
   end,
 })
 

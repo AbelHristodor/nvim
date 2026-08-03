@@ -730,6 +730,18 @@ if ok_cfn then
     cfn_lsp_src:close()
     check('lsp.lua ensures cfn-lint installed', src:match "'cfn%-lint'" ~= nil, 'not in ensure_installed')
   end
+
+  -- Schema association runs at LSP runtime, so a headless run has no client to
+  -- observe. Assert the SOURCE wires it (same style as the automatic_enable and
+  -- rust inlay-hint checks above).
+  local cfn_lsp_src2 = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/lsp.lua', 'r')
+  if cfn_lsp_src2 then
+    local src = cfn_lsp_src2:read 'a'
+    cfn_lsp_src2:close()
+    check('lsp.lua listens for CloudFormationDetected', src:match 'CloudFormationDetected' ~= nil, 'schema is never associated')
+    check('lsp.lua pushes schema via didChangeConfiguration', src:match 'workspace/didChangeConfiguration' ~= nil)
+    check('lsp.lua references the cfn schema_url', src:match 'cloudformation%.schema_url' ~= nil or src:match 'schema_url' ~= nil)
+  end
 end
 
 if #failures > 0 then
