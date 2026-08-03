@@ -671,6 +671,36 @@ if ok_cfn then
     check('is_template true for JSON template', cfn.is_template(b4) == true)
     vim.api.nvim_buf_delete(b4, { force = true })
   end
+
+  -- Detection autocmd must be registered by init.lua (own augroup).
+  check('cloudformation augroup exists', count_autocmds 'config-cloudformation' > 0, 'setup() not wired from init.lua')
+
+  -- init.lua must actually require the module (see the WIRING vs STATE note near
+  -- the top of this file: requiring it here would mask a missing init.lua line).
+  local cfn_init = io.open(vim.fn.stdpath 'config' .. '/init.lua', 'r')
+  if cfn_init then
+    local src = cfn_init:read 'a'
+    cfn_init:close()
+    check('init.lua sets up config.cloudformation', src:match "require%s*%(?%s*'config%.cloudformation'%s*%)?%s*%.setup" ~= nil or src:match "require%('config%.cloudformation'%)" ~= nil, 'not required in init.lua')
+  end
+
+  -- End-to-end: a yaml buffer with template content, run through the detection
+  -- callback, gets the composite filetype and the marker variable.
+  if type(cfn.setup) == 'function' then
+    local b = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_buf_set_lines(b, 0, -1, false, { 'AWSTemplateFormatVersion: "2010-09-09"', 'Resources:', '  B: { Type: AWS::S3::Bucket }' })
+    vim.api.nvim_buf_set_option(b, 'filetype', 'yaml')
+    check('detected buffer filetype is yaml.cloudformation', vim.bo[b].filetype == 'yaml.cloudformation', vim.bo[b].filetype)
+    check('detected buffer sets b:cloudformation', vim.b[b].cloudformation == true)
+    vim.api.nvim_buf_delete(b, { force = true })
+
+    -- A plain yaml buffer must be left as-is (no recursion, no false positive).
+    local b2 = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_buf_set_lines(b2, 0, -1, false, { 'name: CI', 'jobs:', '  build:', '    steps: []' })
+    vim.api.nvim_buf_set_option(b2, 'filetype', 'yaml')
+    check('ordinary yaml buffer stays yaml', vim.bo[b2].filetype == 'yaml', vim.bo[b2].filetype)
+    vim.api.nvim_buf_delete(b2, { force = true })
+  end
 end
 
 if #failures > 0 then

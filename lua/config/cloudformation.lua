@@ -2,8 +2,8 @@
 --
 -- Pure data plus one pure predicate (is_template) -- mirrors
 -- lua/config/project.lua so it can be required from lua/plugins/lsp.lua and
--- asserted directly in tests/health.lua. A later change adds a detection
--- autocmd that consumes this data.
+-- asserted directly in tests/health.lua. M.setup() adds a FileType autocmd that
+-- consumes this data to detect and mark templates.
 --
 -- Detection is CONTENT-BASED, not filename-based: CFN templates have arbitrary
 -- names, so a buffer is a template when it declares AWSTemplateFormatVersion or
@@ -69,6 +69,33 @@ function M.is_template(bufnr)
     if line:match '^%s*"Resources"%s*:' then return true end
   end
   return false
+end
+
+--- Registers content-based CFN detection on yaml/json buffers.
+---
+--- On a matching buffer, sets the composite filetype and `b:cloudformation`,
+--- then fires `User CloudFormationDetected` (data = bufnr) so the LSP layer can
+--- push the schema without this module depending on it.
+function M.setup()
+  local group = vim.api.nvim_create_augroup('config-cloudformation', { clear = true })
+  vim.api.nvim_create_autocmd('FileType', {
+    desc = 'Detect CloudFormation templates and mark the buffer',
+    group = group,
+    pattern = { 'yaml', 'json', 'json5' },
+    callback = function(args)
+      local buf = args.buf
+      -- Guard against the re-trigger from setting filetype below, and against
+      -- acting on an already-composite filetype.
+      if vim.b[buf].cloudformation then return end
+      if not M.is_template(buf) then return end
+
+      vim.b[buf].cloudformation = true
+      local base = args.match:match 'json' and 'json' or 'yaml'
+      vim.bo[buf].filetype = base .. '.cloudformation'
+
+      vim.api.nvim_exec_autocmds('User', { pattern = 'CloudFormationDetected', data = { buf = buf } })
+    end,
+  })
 end
 
 return M

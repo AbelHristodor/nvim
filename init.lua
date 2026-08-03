@@ -64,6 +64,12 @@ require 'config.diagnostics'
 -- so a load error surfaces at startup rather than on first LSP attach.
 require 'config.project'
 
+-- CloudFormation template detection. Marks yaml/json buffers whose CONTENTS are
+-- a CFN template with a composite filetype, so lua/plugins/lsp.lua can attach
+-- the schema and lua/plugins/format.lua can run cfn-lint. Set up here so the
+-- FileType autocmd exists before the first buffer opens.
+require('config.cloudformation').setup()
+
 require 'plugins.ui'
 require 'plugins.editor'
 require 'plugins.treesitter'
