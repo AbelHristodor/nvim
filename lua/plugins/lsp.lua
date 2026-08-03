@@ -374,14 +374,18 @@ vim.keymap.set('n', '<leader>cv', '<cmd>VenvSelect<CR>', { desc = 'Select Python
 -- Detection is content-based (lua/config/cloudformation), so the schema-to-file
 -- association is not known until a buffer is inspected -- a static filename glob
 -- in settings.yaml.schemas cannot express "this file, because of its contents".
--- So the schema is pushed at runtime, per detected buffer, via
--- workspace/didChangeConfiguration -- the same mechanism set_python_path uses
--- above.
+-- So the schema is pushed at runtime, per detected buffer, via the same
+-- workspace/didChangeConfiguration push set_python_path uses above, but
+-- deliberately mutating client.settings in place (deep-extending the schemas
+-- LIST would merge index-wise and duplicate entries).
 --
 -- A yamlls/jsonls client is shared across every buffer under one root, so the
 -- matched paths accumulate and the whole list is re-pushed each time; setting
 -- the schemas entry directly (not tbl_deep_extend) avoids leaving stale list
--- entries behind.
+-- entries behind. The accumulator lists are intentionally never cleared: a
+-- closed/deleted buffer leaves its path behind, which is harmless because a
+-- fileMatch pointing at a no-longer-open file simply never matches, and the
+-- dedup guard keeps re-detection from adding duplicates.
 local cfn_yaml_files, cfn_json_files = {}, {}
 
 ---Associates the CFN schema with `buf` on its yamlls/jsonls client, if attached.
