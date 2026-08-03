@@ -16,6 +16,7 @@
 -- running the lspconfig setup "may cause conflicts".
 
 local project = require 'config.project'
+local cloudformation = require 'config.cloudformation'
 
 -- Mason's bin directory must be on PATH before any server starts.
 --
@@ -204,7 +205,14 @@ local servers = {
 
   bashls = {},
   jsonls = {},
-  yamlls = {},
+  -- yaml-language-server. customTags teaches it CFN's short-form intrinsic
+  -- functions (!Ref, !GetAtt, !Sub, ...) so a template stops reporting every one
+  -- as an unresolved tag. Harmless for ordinary YAML. The CFN *schema* is not set
+  -- statically here -- detection is content-based, so lua/config/cloudformation
+  -- marks templates and the schema is pushed per-buffer below.
+  yamlls = {
+    settings = { yaml = { customTags = cloudformation.intrinsic_tags } },
+  },
   taplo = {},
   marksman = {},
 }
@@ -264,6 +272,7 @@ local function setup_mason()
       'gofumpt',
       'goimports',
       'markdownlint-cli2',
+      'cfn-lint',
       -- Debug adapters (used by lua/plugins/dap.lua).
       'debugpy',
       'codelldb',

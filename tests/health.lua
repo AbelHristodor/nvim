@@ -709,6 +709,27 @@ if ok_cfn then
     check('ordinary yaml buffer stays yaml', vim.bo[b2].filetype == 'yaml', vim.bo[b2].filetype)
     vim.api.nvim_buf_delete(b2, { force = true })
   end
+
+  -- yamlls must carry the intrinsic-function customTags, or every !Ref/!GetAtt
+  -- in a template is flagged as an unresolved tag.
+  local yaml_cfg = server_cfg 'yamlls'
+  check('yamlls configured (for cfn tags)', yaml_cfg ~= nil)
+  if yaml_cfg then
+    local tags = vim.tbl_get(yaml_cfg, 'settings', 'yaml', 'customTags') or {}
+    check('yamlls has non-empty customTags', type(tags) == 'table' and #tags > 0, tostring(#tags))
+    local blob = table.concat(tags, ' ')
+    check('yamlls customTags include !GetAtt', blob:find('!GetAtt', 1, true) ~= nil)
+  end
+
+  -- cfn-lint must be in the mason-tool-installer ensure_installed list. The list
+  -- is inside a deferred function, so assert the SOURCE (same approach the
+  -- harness uses for automatic_enable).
+  local cfn_lsp_src = io.open(vim.fn.stdpath 'config' .. '/lua/plugins/lsp.lua', 'r')
+  if cfn_lsp_src then
+    local src = cfn_lsp_src:read 'a'
+    cfn_lsp_src:close()
+    check('lsp.lua ensures cfn-lint installed', src:match "'cfn%-lint'" ~= nil, 'not in ensure_installed')
+  end
 end
 
 if #failures > 0 then
