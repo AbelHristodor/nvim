@@ -60,7 +60,15 @@ require('conform').setup {
 vim.pack.add { gh 'mfussenegger/nvim-lint' }
 
 local lint = require 'lint'
-lint.linters_by_ft = { markdown = { 'markdownlint-cli2' } }
+-- cfn_lint keys on the `cloudformation` filetype component
+-- (lua/config/cloudformation sets a composite filetype like yaml.cloudformation).
+-- nvim-lint splits dotted filetypes and unions each component's linters, so this
+-- fires alongside nothing else on the yaml side. The registry key is `cfn_lint`
+-- (the module name), NOT the `cfn-lint` binary name.
+lint.linters_by_ft = {
+  markdown = { 'markdownlint-cli2' },
+  cloudformation = { 'cfn_lint' },
+}
 
 -- MD013 is the line-length rule. Prose here is soft-wrapped, so a hard column
 -- limit is noise rather than signal. Passed on the command line so no

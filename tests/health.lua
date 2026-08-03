@@ -742,6 +742,14 @@ if ok_cfn then
     check('lsp.lua pushes schema via didChangeConfiguration', src:match 'workspace/didChangeConfiguration' ~= nil)
     check('lsp.lua references the cfn schema_url', src:match 'cloudformation%.schema_url' ~= nil or src:match 'schema_url' ~= nil)
   end
+
+  local ok_lint, lint_mod = pcall(require, 'lint')
+  if ok_lint then
+    check('cfn_lint registered for cloudformation ft', lint_mod.linters_by_ft.cloudformation ~= nil and vim.tbl_contains(lint_mod.linters_by_ft.cloudformation, 'cfn_lint'), vim.inspect(lint_mod.linters_by_ft.cloudformation))
+    -- The linter definition must resolve. nvim-lint ships lint/linters/cfn_lint;
+    -- the registry key is the module name (underscore), NOT the binary name.
+    check('cfn_lint linter definition resolves', lint_mod.linters.cfn_lint ~= nil and lint_mod.linters.cfn_lint.cmd == 'cfn-lint', tostring(lint_mod.linters.cfn_lint and lint_mod.linters.cfn_lint.cmd))
+  end
 end
 
 if #failures > 0 then
