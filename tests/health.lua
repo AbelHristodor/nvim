@@ -689,15 +689,23 @@ if ok_cfn then
   if type(cfn.setup) == 'function' then
     local b = vim.api.nvim_create_buf(true, false)
     vim.api.nvim_buf_set_lines(b, 0, -1, false, { 'AWSTemplateFormatVersion: "2010-09-09"', 'Resources:', '  B: { Type: AWS::S3::Bucket }' })
-    vim.api.nvim_buf_set_option(b, 'filetype', 'yaml')
+    vim.bo[b].filetype = 'yaml'
     check('detected buffer filetype is yaml.cloudformation', vim.bo[b].filetype == 'yaml.cloudformation', vim.bo[b].filetype)
     check('detected buffer sets b:cloudformation', vim.b[b].cloudformation == true)
     vim.api.nvim_buf_delete(b, { force = true })
 
+    -- Same for JSON, exercising the base = 'json' branch of setup().
+    local bj = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_buf_set_lines(bj, 0, -1, false, { '{', '  "AWSTemplateFormatVersion": "2010-09-09",', '  "Resources": { "B": { "Type": "AWS::S3::Bucket" } }', '}' })
+    vim.bo[bj].filetype = 'json'
+    check('detected JSON buffer filetype is json.cloudformation', vim.bo[bj].filetype == 'json.cloudformation', vim.bo[bj].filetype)
+    check('detected JSON buffer sets b:cloudformation', vim.b[bj].cloudformation == true)
+    vim.api.nvim_buf_delete(bj, { force = true })
+
     -- A plain yaml buffer must be left as-is (no recursion, no false positive).
     local b2 = vim.api.nvim_create_buf(true, false)
     vim.api.nvim_buf_set_lines(b2, 0, -1, false, { 'name: CI', 'jobs:', '  build:', '    steps: []' })
-    vim.api.nvim_buf_set_option(b2, 'filetype', 'yaml')
+    vim.bo[b2].filetype = 'yaml'
     check('ordinary yaml buffer stays yaml', vim.bo[b2].filetype == 'yaml', vim.bo[b2].filetype)
     vim.api.nvim_buf_delete(b2, { force = true })
   end

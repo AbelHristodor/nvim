@@ -74,8 +74,9 @@ end
 --- Registers content-based CFN detection on yaml/json buffers.
 ---
 --- On a matching buffer, sets the composite filetype and `b:cloudformation`,
---- then fires `User CloudFormationDetected` (data = bufnr) so the LSP layer can
---- push the schema without this module depending on it.
+--- then fires `User CloudFormationDetected` with `data = { buf = buf }` (so the
+--- consumer reads `ev.data.buf` for the buffer number) so the LSP layer can push
+--- the schema without this module depending on it.
 function M.setup()
   local group = vim.api.nvim_create_augroup('config-cloudformation', { clear = true })
   vim.api.nvim_create_autocmd('FileType', {
@@ -90,6 +91,8 @@ function M.setup()
       if not M.is_template(buf) then return end
 
       vim.b[buf].cloudformation = true
+      -- json5 normalizes to `json` on purpose: jsonls and prettier key on the
+      -- `json` component, so a detected json5 template becomes json.cloudformation.
       local base = args.match:match 'json' and 'json' or 'yaml'
       vim.bo[buf].filetype = base .. '.cloudformation'
 
