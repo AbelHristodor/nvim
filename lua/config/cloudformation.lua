@@ -1,8 +1,9 @@
 -- CloudFormation template detection and data.
 --
--- Pure data plus one pure predicate (is_template) and one autocmd registrar
--- (setup) -- mirrors lua/config/project.lua so it can be required from
--- lua/plugins/lsp.lua and asserted directly in tests/health.lua.
+-- Pure data plus one pure predicate (is_template) -- mirrors
+-- lua/config/project.lua so it can be required from lua/plugins/lsp.lua and
+-- asserted directly in tests/health.lua. A later change adds a detection
+-- autocmd that consumes this data.
 --
 -- Detection is CONTENT-BASED, not filename-based: CFN templates have arbitrary
 -- names, so a buffer is a template when it declares AWSTemplateFormatVersion or
@@ -63,7 +64,8 @@ function M.is_template(bufnr)
     if line:find('AWSTemplateFormatVersion', 1, true) then return true end
     -- Top-level YAML mapping key: no leading whitespace.
     if line:match '^Resources%s*:' then return true end
-    -- Top-level JSON key: allow the leading brace/whitespace JSON permits.
+    -- Top-level JSON key: allow the leading whitespace pretty-printed JSON puts
+    -- before the key (the "Resources" key sits one indent level in).
     if line:match '^%s*"Resources"%s*:' then return true end
   end
   return false

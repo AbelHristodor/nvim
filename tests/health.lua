@@ -657,6 +657,14 @@ if ok_cfn then
     check('is_template false for ordinary YAML workflow', cfn.is_template(b3) == false)
     vim.api.nvim_buf_delete(b3, { force = true })
 
+    -- Capital-R `Resources:` but INDENTED (nested under another key), with no
+    -- AWSTemplateFormatVersion and no column-0 Resources:. Exercises the `^`
+    -- anchor: only a TOP-LEVEL key counts, so this must NOT match.
+    local b5 = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b5, 0, -1, false, { 'service:', '  config:', '    Resources: still-nested' })
+    check('is_template false for indented Resources: key', cfn.is_template(b5) == false)
+    vim.api.nvim_buf_delete(b5, { force = true })
+
     -- JSON template.
     local b4 = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_lines(b4, 0, -1, false, { '{', '  "AWSTemplateFormatVersion": "2010-09-09",', '  "Resources": {}', '}' })
